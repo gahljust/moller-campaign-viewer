@@ -5,7 +5,7 @@ and particle transport. It starts on the hit-map page. The full local research
 viewer remains in [showermax_live](../showermax_live/README.md).
 
 This directory is its own Git repository. `main` is the shared-edition baseline;
-`codex/shared-viewer` is the working branch for refinements. Generated site files
+`shared-viewer` is the working branch for refinements. Generated site files
 and simulation data stay outside it. GitHub repository creation, pushing, and
 public hosting are deferred until the interface is ready to publish.
 
@@ -51,14 +51,16 @@ sections. Its one-line sample description covers **all included configurations**
 simulated events scanned and sampled recorded track paths. Multiple paths may
 belong to one physical track; animation repetitions are not counted as data.
 
-The results page adds PE-weighted ShowerMax dilution factors and their
-correlation matrix, using the integrated PE contributions of the included
-interactions at the selected target, energy, and sieve. Independent source-run
-variances propagate through the normalized fractions, including their
-correlations. These are integrated ShowerMax factors; missing regional
-covariance is not inferred. The downloaded values include the underlying
-ShowerMax contributions and full fraction covariance. Measured-fit placeholders,
-input provenance disclosure, and historical-comparison text are omitted.
+The results page keeps the main-detector dilution table and appends three
+ShowerMax rows after a small break: open, closed, and transition. These rows
+show PE-weighted signal in PE/s, with saved regional errors where available.
+They do not compute ShowerMax dilution, deconvolution, or a covariance matrix.
+The three main-detector ep-inelastic component columns are merged for the
+ShowerMax rows because the saved regional PE signal contains their process
+total. Missing source/region statistics remain unavailable. The existing
+correlation matrix covers only main-detector dilutions. Downloads add only
+ShowerMax regional signals. Measured-fit placeholders, input provenance
+disclosure, and historical-comparison text are omitted.
 
 Hit-map histogram/method disclosure sections are omitted. Short units and MC
 uncertainties remain beside their values; unavailable statistics stay unavailable.

@@ -64,24 +64,31 @@ function interactionPanel(d,unit='PE/s',current=null){
 async function showTab(name){tab=name;$('identity').textContent='';$('analysisSelection').hidden=tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
 async function showResults(){
  let token=revision,selection=catalog.runs.find(r=>r.name===run);
- $('resultBody').innerHTML='<p>Loading saved dilution factors…</p>';
+ $('resultBody').innerHTML='<p>Loading saved values…</p>';
  let combined=catalog.runs.find(r=>r.kind==='combined'&&r.target===selection.target&&+r.energy_mev===+selection.energy_mev&&(r.target==='lh2'||r.sieve===selection.sieve));
  let [d,shower]=await Promise.all([api('results',{run}),fetchMap(combined?.name||run,'circle')]);
  if(token!==revision||tab!=='results')return;
- let a=shower.interaction_summary;
- resultData={...d,showermax:shower};
+ let p=d.dilution,sources=shower.contributions||[{channel:shower.metadata.channel,target:shower.metadata.target,regions:shower.regions}];
+ const sourceChannel=c=>c.startsWith('ep_inelastic_')?'ep_inelastic':c;
+ let components=p?.components||[...new Set([...sources.map(r=>r.channel),...(shower.combination?.missing||[]).map(item=>item.split(': ')[1])])];
+ let columns=[];
+ for(let c of components){let channel=sourceChannel(c),last=columns.at(-1);if(last?.channel===channel)last.span++;else columns.push({channel,span:1})}
+ let signalRows=['open','closed','transition'].map(region=>({region,values:columns.map(({channel})=>{
+  let parts=sources.filter(s=>s.channel===channel),values=parts.map(s=>s.regions?.available?s.regions.rows.find(r=>r.region===region):null);
+  if(!parts.length||values.some(v=>!v))return {channel,estimate:null,standard_error:null};
+  return {channel,estimate:M.sum(values.map(v=>v.estimate)),standard_error:values.every(v=>v.standard_error!=null)?Math.sqrt(M.sum(values.map(v=>v.standard_error**2))):null};
+ })}));
+ // Keep the download's ShowerMax addition limited to region signals.
+ let {overview,...mainResults}=d;
+ resultData={...mainResults,showermax_signal:{unit:'PE/s',display_current_uA:shower.normalization?.display_current_uA,rows:signalRows}};
  $('resultScope').textContent=`${targetLabel(d.scope.target)} · ${+d.scope.energy_mev/1000} GeV · ± 1σ MC`;
- let rows=a?.components||[],missing=shower.combination?.missing||[];
- let tableRows=rows.map(r=>[esc(names[r.channel]||r.channel),`<strong>${esc(percentError(r.fraction,r.fraction_standard_error))}</strong>`]);
- for(let item of missing){let[target,ch]=item.split(': ');tableRows.push([esc((selection.target==='optics_all'?targetLabel(target)+' · ':'')+(names[ch]||ch)),'Unavailable'])}
- let hasCov=!!a?.fraction_covariance;
- let overview=`<h2>ShowerMax PE-weighted dilution</h2><p class="statusline">Share of ${missing.length?'included':'total'} PE signal · ${shower.normalization?.display_current_uA??''} µA</p><div class="two"><article>${table(['Interaction','Dilution ± MC error'],tableRows)}</article><article><h3>ShowerMax dilution correlations</h3>${hasCov?'<div class="matrixWrap"><canvas id="showerCovMap" width="450" height="450"></canvas><div id="showerCovTip"><p>Blue −1 · white 0 · orange +1</p></div></div>':'<p>Covariance unavailable.</p>'}</article></div>`;
- let p=d.dilution;
- let main=p?`<h2>Main detector dilution</h2>${table(['Category',...p.components.map(c=>names[c]||c)],p.rows.map(row=>[esc(row.category.replaceAll('_',' ')),...p.components.map(c=>{let v=row.components[c];return `<strong>${esc(percentError(v.dilution,v.dilution_standard_error))}</strong>`})]))}<h3>Main detector dilution correlations</h3><div class="matrixWrap"><canvas id="covMap" width="450" height="450"></canvas><div id="covTip"><p>Blue −1 · white 0 · orange +1</p></div></div>`:'<h2>Main detector dilution</h2><p>Unavailable for this selection.</p>';
- $('resultBody').innerHTML=overview+main;
- if(a)compactUncertainty(a.estimate,a.standard_error);
- if(hasCov)drawCov({dilution_covariance:a.fraction_covariance,coordinate_order:rows.map(r=>({category:'ShowerMax',component:r.channel}))},'showerCovMap','showerCovTip');
- if(p)drawCov(p);
+ let mainRows=p?p.rows.map(row=>[esc(row.category.replaceAll('_',' ')),...p.components.map(c=>{let v=row.components[c];return `<strong>${esc(percentError(v.dilution,v.dilution_standard_error))}</strong>`})]):[];
+ let main=table(['Category',...components.map(c=>names[c]||c)],mainRows);
+ let cell=v=>v.estimate==null?'Unavailable':`<strong>${fmt(v.estimate)}</strong>${v.standard_error==null?'':`<small>± ${fmt(v.standard_error,3)}</small>`}`;
+ let extra=`<tbody class="showerSignal"><tr class="tableBreak"><td colspan="${components.length+1}"></td></tr><tr class="signalSection"><th colspan="${components.length+1}">ShowerMax · PE-weighted signal [PE/s]${shower.combination?.missing?.length?' · included interactions':''}</th></tr><tr><th>Region</th>${columns.map(c=>`<th colspan="${c.span}">${esc(names[c.channel]||c.channel)}${c.span>1?' · total':''}</th>`).join('')}</tr>${signalRows.map(r=>`<tr><td>ShowerMax ${r.region}</td>${r.values.map((v,i)=>`<td colspan="${columns[i].span}">${cell(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+ main=main.replace('</table>',extra+'</table>');
+ $('resultBody').innerHTML=(p?'':'<p>Main detector dilution unavailable for this selection.</p>')+main+(p?'<h3>Main detector dilution correlations</h3><div class="matrixWrap"><canvas id="covMap" width="450" height="450"></canvas><div id="covTip"><p>Blue −1 · white 0 · orange +1</p></div></div>':'');
+ if(p){let max=Math.max(...p.rows.flatMap(row=>Object.values(row.components).map(v=>v.dilution_standard_error)));$('identity').textContent='Dilution MC ±'+fmt(max*100,3)+'% max';drawCov(p)}
 }
 function drawCov(p,id='covMap',tip='covTip'){let cv=$(id),cx=cv.getContext('2d'),n=p.dilution_covariance.length,w=cv.width/n;for(let i=0;i<n;i++)for(let j=0;j<n;j++){let v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]),r=den?v/den:0,a=Math.min(1,Math.abs(r)),color=r<0?[7,125,158]:[244,120,31];cx.fillStyle=`rgb(${color.map(c=>Math.round(255+(c-255)*a)).join(',')})`;cx.fillRect(j*w,i*w,w+.3,w+.3)}cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),j=Math.min(n-1,Math.floor((e.clientX-b.left)/b.width*n)),i=Math.min(n-1,Math.floor((e.clientY-b.top)/b.height*n)),v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]);$(tip).innerHTML=`<p>${esc(p.coordinate_order[i].category)} · ${esc(names[p.coordinate_order[i].component])}<br>with ${esc(p.coordinate_order[j].category)} · ${esc(names[p.coordinate_order[j].component])}</p><p>Correlation: <strong>${den?fmt(v/den):'Undefined (zero variance)'}</strong><br>Covariance: ${fmt(v)} (fraction²)</p>`}}
 function planeLabel(p){return p==='circle'?'ShowerMax PE response':p==='full_plane'?'ShowerMax virtual plane 30':p.replaceAll('_',' ')}
