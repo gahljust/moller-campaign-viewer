@@ -107,6 +107,9 @@ uncertainties remain beside their values; unavailable statistics stay unavailabl
 
 ## Statistics and detector passages
 
+The [animation geometry review](GEOMETRY_REVIEW.md) records the native transform
+checks, detector tile counts and orientations, and the corrected context meshes.
+
 The [statistics audit](STATISTICS_AUDIT.md) records the independent ROOT checks,
 historical comparisons, and distinction between physical tile entries and
 calibrated detector signal. Main-quartz entry rates already include backsplash;
