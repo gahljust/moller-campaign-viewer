@@ -1,0 +1,56 @@
+name: Publish shared viewer
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release containing the prepared site.tar.gz
+        required: true
+        type: string
+      bundle_sha256:
+        description: SHA256 printed when packaging the website
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/shared-viewer'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download prepared website
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern site.tar.gz --dir "$RUNNER_TEMP/bundle"
+      - name: Verify source and data before deployment
+        env:
+          BUNDLE_SHA256: ${{ inputs.bundle_sha256 }}
+        run: python3 publish.py unpack --archive "$RUNNER_TEMP/bundle/site.tar.gz" --output "$RUNNER_TEMP/site" --sha256 "$BUNDLE_SHA256" --commit "$GITHUB_SHA"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ runner.temp }}/site
+  deploy:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4

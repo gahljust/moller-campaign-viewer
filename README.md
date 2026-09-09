@@ -4,10 +4,13 @@ A separate, editable edition for sharing detector maps, kinematics, results,
 and particle transport. It starts on the hit-map page. The full local research
 viewer remains in [showermax_live](../showermax_live/README.md).
 
-This directory is its own Git repository. `main` is the shared-edition baseline;
-`shared-viewer` is the working branch for refinements. Generated site files
-and simulation data stay outside it. GitHub repository creation, pushing, and
-public hosting are deferred until the interface is ready to publish.
+This directory is its own Git repository. **`shared-viewer` publishes the website;
+`main` is reserved for local work and is not pushed or deployed.** Generated site
+files and simulation data stay outside Git history.
+
+Website: https://gahljust.github.io/moller-campaign-viewer/
+
+Source: https://github.com/gahljust/moller-campaign-viewer
 
 ## Build and preview
 
@@ -111,7 +114,7 @@ entry plus exit is one passage, while later reentry counts again. The ShowerMax
 PE lookup has a different, forward incident-shower definition. Dilution errors
 include numerator/denominator covariance and remain part of the shared results.
 
-## Hosting later
+## Publish with GitHub Pages
 
 The generated site is plain HTML, CSS, JavaScript, and compressed JSON. Serve
 the complete output directory over HTTPS from a static host, including a GitHub
@@ -120,10 +123,34 @@ Python, ROOT, GEM solver, or private analysis API on the hosted site. Browsers
 load only the selected products. The build enforces 64 MiB overall and 2 MiB
 per compressed product, includes `.nojekyll`, and excludes GEM model products.
 
-A future repository should track these editable source files and the build
-instructions. Upload the generated site as a deployment artifact, rather than
-committing ROOT files or generated data into the analysis repository. No public
-repository or deployment is created by the build or preview commands.
+GitHub tracks the editable source on `shared-viewer`. Each published version has
+a GitHub release containing the prepared website, including its compressed data.
+The Pages workflow verifies that bundle against the source commit and checks
+every data hash before deploying it. The analysis export stays on your computer;
+GitHub does not run ROOT analysis. Build and preview commands never publish.
+
+After editing and checking the shared viewer, run these commands **from this
+directory**, with GitHub CLI (`gh`) installed and signed in:
+
+```bash
+git switch shared-viewer
+# Commit the changes you want to publish, then:
+git push origin shared-viewer
+python3 publish.py publish
+```
+
+The last command rebuilds from the saved research export, uploads a release,
+and starts deployment. It refuses an uncommitted tree, a different branch, or
+a source commit that has not been pushed. Follow the resulting deployment in
+[GitHub Actions](https://github.com/gahljust/moller-campaign-viewer/actions).
+GitHub Pages serves the website continuously; your computer can be switched off.
+
+Keep local-only experiments on `main`. Move selected changes to `shared-viewer`
+when they are ready; do not push all branches. The workflow runs only when
+explicitly requested on `shared-viewer`, so local edits and ordinary pushes
+cannot replace the website. An older release can be restored from Actions using
+its release tag and SHA256 after restoring that release's source commit to
+`shared-viewer`. No server process is left running by the publish command.
 
 To build from a prepared export outside this workspace, use Python 3 and supply
 both paths explicitly; that mode uses only the Python standard library:
