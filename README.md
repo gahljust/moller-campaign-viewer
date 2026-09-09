@@ -102,6 +102,15 @@ substituted with zero.
 Hit-map histogram/method disclosure sections are omitted. Short units and MC
 uncertainties remain beside their values; unavailable statistics stay unavailable.
 
+## Statistics and detector passages
+
+The [statistics audit](STATISTICS_AUDIT.md) records the independent ROOT checks,
+historical comparisons, and distinction between physical tile entries and
+calibrated detector signal. Main-quartz entry rates already include backsplash;
+entry plus exit is one passage, while later reentry counts again. The ShowerMax
+PE lookup has a different, forward incident-shower definition. Dilution errors
+include numerator/denominator covariance and remain part of the shared results.
+
 ## Hosting later
 
 The generated site is plain HTML, CSS, JavaScript, and compressed JSON. Serve
