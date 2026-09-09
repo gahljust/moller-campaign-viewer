@@ -1,0 +1,12 @@
+{
+  "percentFormat": "{value}% \u00b1 {error}%",
+  "valueDigits": 4,
+  "uncertaintyDigits": 3,
+  "labels": {
+    "allInteractions": "All interactions",
+    "allOpticsFoils": "All optics foils",
+    "resultsTab": "Results & uncertainties",
+    "mapsTab": "Hit maps & kinematics",
+    "transportTab": "Particle transport"
+  }
+}
