@@ -14,7 +14,7 @@ PRODUCT_LIMIT = 2 * 1024 * 1024
 ROUTES = {'catalog', 'results', 'maps', 'transport-catalog', 'transport', 'geometry'}
 
 
-def build(source, output):
+def build(source, output, showermax=None):
     source, output = Path(source).resolve(), Path(output).resolve()
     if source == output or source in output.parents or output in source.parents:
         raise ValueError('Source export and shared output must be separate directories.')
@@ -22,6 +22,11 @@ def build(source, output):
     cohort = manifest['cohort']
     if cohort == 'unverified-history':
         raise ValueError('Shared exports require a verified producing cohort.')
+    supplemental = json.loads(Path(showermax).read_text()) if showermax else None
+    if supplemental and (supplemental.get('schema') != 'showermax_regional_dilution_v1'
+                         or supplemental['cohort'] != cohort
+                         or supplemental['source_manifest_sha256'] != hashlib.sha256((source/'manifest.json').read_bytes()).hexdigest()):
+        raise ValueError('ShowerMax statistics do not match this research export; prepare them again.')
 
     def load(key):
         item = manifest['products'][key]
@@ -99,6 +104,11 @@ def build(source, output):
             if route == 'transport' and args.get('name', [''])[0] not in transport_names:
                 continue
             value = load(key)
+            if route == 'results' and supplemental:
+                name = args['run'][0]
+                if name not in supplemental['selections']:
+                    raise ValueError('Missing ShowerMax dilution statistics: ' + name)
+                value['showermax_dilution'] = supplemental['selections'][name]
             if route == 'maps' and not set(value.get('map_sources', [])) <= names:
                 raise ValueError('Map recipe references an excluded campaign.')
             if route == 'transport':
@@ -147,6 +157,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, help='Prepared research browser export')
     parser.add_argument('--output', type=Path, help='Separate generated shared site directory')
+    parser.add_argument('--showermax', type=Path, help='Prepared ShowerMax regional dilution summary')
     args = parser.parse_args()
     source, output = (args.source, args.output) if args.source and args.output else defaults()
-    build(args.source or source, args.output or output)
+    source = args.source or source
+    summary = args.showermax or source.parent/'showermax_dilution/summary.json'
+    if not summary.is_file():
+        parser.error('Prepare ShowerMax statistics with prepare_showermax.py first, or supply --showermax.')
+    build(source, args.output or output, summary)

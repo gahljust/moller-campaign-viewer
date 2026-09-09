@@ -73,5 +73,23 @@ class SharedBuildTests(unittest.TestCase):
             build(self.source, self.output)
         self.assertFalse(self.output.exists())
 
+    def test_showermax_supplement_is_bound_to_export_and_keeps_main_matrix(self):
+        main = {'dilution_covariance': [[1.0]]}
+        self.put('results?run=a', {'dilution': main})
+        extra = {'components': ['moller'], 'rows': [{'region': 'open', 'components': {'moller': {'dilution': 1., 'dilution_standard_error': 0.}}}]}
+        path = self.root/'showermax.json'
+        value = {'schema': 'showermax_regional_dilution_v1', 'cohort': 'current:field',
+                 'source_manifest_sha256': hashlib.sha256((self.source/'manifest.json').read_bytes()).hexdigest(),
+                 'selections': {'a': extra}}
+        path.write_text(json.dumps(value))
+        result = build(self.source, self.output, path)
+        payload = json.loads(gzip.decompress((self.output/result['products']['results?run=a']['path']).read_bytes()))
+        self.assertEqual(payload['dilution'], main)
+        self.assertEqual(payload['showermax_dilution'], extra)
+        value['source_manifest_sha256'] = 'stale'
+        path.write_text(json.dumps(value))
+        with self.assertRaisesRegex(ValueError, 'do not match'):
+            build(self.source, self.output, path)
+
 if __name__ == '__main__':
     unittest.main()

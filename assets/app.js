@@ -65,27 +65,17 @@ async function showTab(name){tab=name;$('identity').textContent='';$('analysisSe
 async function showResults(){
  let token=revision,selection=catalog.runs.find(r=>r.name===run);
  $('resultBody').innerHTML='<p>Loading saved values…</p>';
- let combined=catalog.runs.find(r=>r.kind==='combined'&&r.target===selection.target&&+r.energy_mev===+selection.energy_mev&&(r.target==='lh2'||r.sieve===selection.sieve));
- let [d,shower]=await Promise.all([api('results',{run}),fetchMap(combined?.name||run,'circle')]);
+ let d=await api('results',{run});
  if(token!==revision||tab!=='results')return;
- let p=d.dilution,sources=shower.contributions||[{channel:shower.metadata.channel,target:shower.metadata.target,regions:shower.regions}];
- const sourceChannel=c=>c.startsWith('ep_inelastic_')?'ep_inelastic':c;
- let components=p?.components||[...new Set([...sources.map(r=>r.channel),...(shower.combination?.missing||[]).map(item=>item.split(': ')[1])])];
- let columns=[];
- for(let c of components){let channel=sourceChannel(c),last=columns.at(-1);if(last?.channel===channel)last.span++;else columns.push({channel,span:1})}
- let signalRows=['open','closed','transition'].map(region=>({region,values:columns.map(({channel})=>{
-  let parts=sources.filter(s=>s.channel===channel),values=parts.map(s=>s.regions?.available?s.regions.rows.find(r=>r.region===region):null);
-  if(!parts.length||values.some(v=>!v))return {channel,estimate:null,standard_error:null};
-  return {channel,estimate:M.sum(values.map(v=>v.estimate)),standard_error:values.every(v=>v.standard_error!=null)?Math.sqrt(M.sum(values.map(v=>v.standard_error**2))):null};
- })}));
- // Keep the download's ShowerMax addition limited to region signals.
+ let p=d.dilution,shower=d.showermax_dilution;
+ let components=p?.components||shower?.components||[];
  let {overview,...mainResults}=d;
- resultData={...mainResults,showermax_signal:{unit:'PE/s',display_current_uA:shower.normalization?.display_current_uA,rows:signalRows}};
+ resultData=mainResults;
  $('resultScope').textContent=`${targetLabel(d.scope.target)} · ${+d.scope.energy_mev/1000} GeV · ± 1σ MC`;
- let mainRows=p?p.rows.map(row=>[esc(row.category.replaceAll('_',' ')),...p.components.map(c=>{let v=row.components[c];return `<strong>${esc(percentError(v.dilution,v.dilution_standard_error))}</strong>`})]):[];
+ let mainRows=p?p.rows.map(row=>[esc(row.category.replaceAll('_',' ')),...components.map(c=>{let v=row.components[c];return `<strong>${esc(percentError(v.dilution,v.dilution_standard_error))}</strong>`})]):[];
  let main=table(['Category',...components.map(c=>names[c]||c)],mainRows);
- let cell=v=>v.estimate==null?'Unavailable':`<strong>${fmt(v.estimate)}</strong>${v.standard_error==null?'':`<small>± ${fmt(v.standard_error,3)}</small>`}`;
- let extra=`<tbody class="showerSignal"><tr class="tableBreak"><td colspan="${components.length+1}"></td></tr><tr class="signalSection"><th colspan="${components.length+1}">ShowerMax · PE-weighted signal [PE/s]${shower.combination?.missing?.length?' · included interactions':''}</th></tr><tr><th>Region</th>${columns.map(c=>`<th colspan="${c.span}">${esc(names[c.channel]||c.channel)}${c.span>1?' · total':''}</th>`).join('')}</tr>${signalRows.map(r=>`<tr><td>ShowerMax ${r.region}</td>${r.values.map((v,i)=>`<td colspan="${columns[i].span}">${cell(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+ let cell=v=>`<strong>${esc(percentError(v?.dilution,v?.dilution_standard_error))}</strong>`;
+ let extra=`<tbody class="showerSignal"><tr class="tableBreak"><td colspan="${components.length+1}"></td></tr><tr class="signalSection"><th colspan="${components.length+1}">ShowerMax · PE-weighted dilution${shower?.missing?.length?' · included interactions':''}</th></tr>${['open','closed','transition'].map(region=>{let row=shower?.rows.find(r=>r.region===region);return `<tr><td>ShowerMax ${region}</td>${components.map(c=>`<td>${cell(row?.components[c])}</td>`).join('')}</tr>`}).join('')}</tbody>`;
  main=main.replace('</table>',extra+'</table>');
  $('resultBody').innerHTML=(p?'':'<p>Main detector dilution unavailable for this selection.</p>')+main+(p?'<h3>Main detector dilution correlations</h3><div class="matrixWrap"><canvas id="covMap" width="450" height="450"></canvas><div id="covTip"><p>Blue −1 · white 0 · orange +1</p></div></div>':'');
  if(p){let max=Math.max(...p.rows.flatMap(row=>Object.values(row.components).map(v=>v.dilution_standard_error)));$('identity').textContent='Dilution MC ±'+fmt(max*100,3)+'% max';drawCov(p)}

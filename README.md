@@ -21,8 +21,9 @@ python3 _local_work/background_campaign/shared_viewer/preview.py
 Open **http://127.0.0.1:8781/**. Press **Ctrl+C in that terminal** to stop.
 The full local viewer uses a different port, so the two can be compared.
 
-The build reads the already prepared research export at
-`DATA_ROOT/background_campaign/research/browser/` and writes a separate site to
+The build reads the already prepared research export and ShowerMax statistics at
+`DATA_ROOT/background_campaign/research/browser/` and
+`DATA_ROOT/background_campaign/research/showermax_dilution/summary.json`, then writes a separate site to
 `DATA_ROOT/background_campaign/research/shared_viewer/`. It verifies product
 hashes and includes only the export's producing cohort. It never reads ROOT,
 runs simulations, or modifies the local research interface.
@@ -52,15 +53,51 @@ simulated events scanned and sampled recorded track paths. Multiple paths may
 belong to one physical track; animation repetitions are not counted as data.
 
 The results page keeps the main-detector dilution table and appends three
-ShowerMax rows after a small break: open, closed, and transition. These rows
-show PE-weighted signal in PE/s, with saved regional errors where available.
-They do not compute ShowerMax dilution, deconvolution, or a covariance matrix.
-The three main-detector ep-inelastic component columns are merged for the
-ShowerMax rows because the saved regional PE signal contains their process
-total. Missing source/region statistics remain unavailable. The existing
-correlation matrix covers only main-detector dilutions. Downloads add only
-ShowerMax regional signals. Measured-fit placeholders, input provenance
-disclosure, and historical-comparison text are omitted.
+ShowerMax rows after a small break: open, closed, and transition. Each number
+is the component's PE-weighted response divided by the total PE-weighted
+response **in that region**, with its MC standard error. The same columns apply:
+Møller, ep elastic, and ep-inelastic Δ, resonance, and continuum. The W boundaries
+match the production main-detector analysis: [1, 1.4), [1.4, 2.5), [2.5, 6) GeV.
+The extractor refuses nonzero PE signal outside those bins instead of silently
+assigning it to a component.
+
+No ShowerMax deconvolution or matrix panel is added. The existing matrix remains
+main-detector-only. The downloaded ShowerMax addition contains the fractions
+and their standard errors, not a new fit or matrix. In incomplete configurations,
+fractions refer to the included interactions, labeled directly above the rows.
+
+### Preparing ShowerMax statistics
+
+The missing region-by-W statistics require one explicit ROOT analysis pass,
+without rerunning simulation or modifying ROOT files. From the remoll folder:
+
+```bash
+python3 _local_work/background_campaign/shared_viewer/prepare_showermax.py
+python3 _local_work/background_campaign/shared_viewer/build.py
+```
+
+Press **Ctrl+C** to stop an extraction; completed per-batch caches are reused
+on restart. Only the current export's accepted fixed-quota campaigns are read.
+Small additive caches and the combined summary live under
+`DATA_ROOT/background_campaign/research/showermax_dilution/`; no ROOT data enter
+the website. Re-run preparation after refreshing the research export. The
+builder rejects statistics linked to a different export.
+
+Scores include all forward PE crossings from a history, summed before squaring.
+The saved allocation quotas define the independent strata, including zero-score
+histories. Independent complete batch estimates are averaged, with variance
+scaled by the square of the batch count. For each component, the compact
+statistics retain its variance and covariance with the regional total, so
+shared ep-inelastic sampling and uncertainty in the denominator are included:
+
+`Var(f_i) = [Var(S_i) - 2 f_i Cov(S_i,T) + f_i² Var(T)] / T²`, where `T = Σ S_i`.
+
+This needs no covariance across detector regions or fit with ShowerMax. These
+are statistical MC errors; shared PE-model systematics are not estimated.
+Every regional PE total is checked against the independently saved hit-map
+summary. The LH2 component classification is also checked against the existing
+main-detector template totals on each batch. Unavailable measurements are not
+substituted with zero.
 
 Hit-map histogram/method disclosure sections are omitted. Short units and MC
 uncertainties remain beside their values; unavailable statistics stay unavailable.
@@ -83,7 +120,8 @@ To build from a prepared export outside this workspace, use Python 3 and supply
 both paths explicitly; that mode uses only the Python standard library:
 
 ```bash
-python3 build.py --source /path/to/research-export --output /path/to/shared-site
+python3 build.py --source /path/to/research-export --output /path/to/shared-site \
+  --showermax /path/to/showermax-summary.json
 ```
 
 Checks:
