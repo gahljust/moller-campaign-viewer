@@ -36,5 +36,40 @@ function gaussianResolution(model,row,target,energy,sigma){
  for(let i=0;i<81;i++){let code=i,w=1,q=row.slice();for(let j=0;j<4;j++){let k=code%3;code=Math.floor(code/3);q[j]+=points[k]*sigma[j];w*=weights[k]}let v=predict(model,q,target,energy).k;first+=w*v;second+=w*v*v}
  return {mean:first,sigma:Math.sqrt(Math.max(0,second-first*first)),method:'81_point_gauss_hermite_diagonal_track_covariance'};
 }
-const api={sum,sumMaps,sample,normalize,fold,gaussian,smoothSupported,cameraPoint,blend,predict,gaussianResolution};if(typeof module!=='undefined')module.exports=api;root.ResearchMath=api;
+// Same angular partition as analyze_response_batch.C::azimuth_region.
+function azimuthRegion(x,y){
+ const pi=Math.PI,period=2*pi/7;
+ let phi=Math.atan2(y,x);if(phi<0)phi+=2*pi;
+ const local=phi%period;
+ return local<pi/28||local>=7*pi/28?'closed':local<3*pi/28||local>=5*pi/28?'transition':'open';
+}
+function decodeSourceMap(value){
+ if(value.encoding!=='delta_index_4sig_v1')return value;
+ const nx=value.grid.nx,ny=value.grid.ny,nd=value.directions.length;
+ for(const source of Object.values(value.sources)){let index=0;source.rows=[];
+  for(let i=0;i<source.pixels.length;i+=2){index+=source.pixels[i];let q=Math.floor(index/nx),x=index%nx,y=q%ny;q=Math.floor(q/ny);source.rows.push([x,y,Math.floor(q/nd),q%nd,source.pixels[i+1]])}
+  if(source.energy_pixels){let eindex=0;source.energy=[];for(let i=0;i<source.energy_pixels.length;i+=2){eindex+=source.energy_pixels[i];const q=Math.floor(eindex/62);source.energy.push([Math.floor(q/nd),q%nd,eindex%62,source.energy_pixels[i+1]])}delete source.energy_pixels;}
+  delete source.pixels;
+ }delete value.encoding;return value;
+}
+function selectSourceMap(data,source,region='all',momentum='all'){
+ const selected=Array.isArray(source)?source.map(name=>data.sources[name]):source?[data.sources[source]]:Object.values(data.sources);if(selected.some(s=>!s))throw Error('Source map unavailable: '+source);
+ const ri=region==='all'?-1:data.regions.indexOf(region),di=momentum==='all'?-1:data.directions.indexOf(momentum);
+ if(region!=='all'&&ri<0||momentum!=='all'&&di<0)throw Error('Unknown source-map selection');
+ const bins=new Map(),energy=new Array(62).fill(0);let weight=0;
+ const matches=(r,d)=>(ri<0||ri===r)&&(di<0||di===d);
+ for(const item of selected){
+  for(const [x,y,r,d,w] of item.rows)if(matches(r,d)){const key=x+','+y;bins.set(key,(bins.get(key)||0)+w)}
+  item.weights.forEach((row,r)=>row.forEach((w,d)=>{if(matches(r,d))weight+=w}));
+  for(const [r,d,e,w] of item.energy||[])if(matches(r,d))energy[e]+=w;
+ }
+ return {bins:[...bins].map(([key,w])=>[...key.split(',').map(Number),w]),weight,grid:data.grid,unit:data.unit,energy:selected.every(s=>Array.isArray(s.energy))?energy:null,energy_edges_mev:data.energy_edges_mev};
+}
+function mergeSourceMaps(products){
+ if(!products.length)throw Error('No source maps');const first=products[0],out={...first,sources:{}};
+ for(const p of products){if(JSON.stringify(p.grid)!==JSON.stringify(first.grid)||JSON.stringify(p.regions)!==JSON.stringify(first.regions)||JSON.stringify(p.directions)!==JSON.stringify(first.directions)||p.unit!==first.unit||JSON.stringify(p.energy_edges_mev)!==JSON.stringify(first.energy_edges_mev))throw Error('Incompatible source maps');
+  for(const [name,source]of Object.entries(p.sources)){const dest=out.sources[name]||(out.sources[name]={rows:[],energy:[],weights:source.weights.map(row=>row.map(()=>0))});for(const row of source.rows)dest.rows.push(row);if(!source.energy)throw Error('Source energy unavailable');for(const row of source.energy)dest.energy.push(row);source.weights.forEach((row,r)=>row.forEach((w,d)=>dest.weights[r][d]+=w))}
+ }return out;
+}
+const api={decodeSourceMap,selectSourceMap,mergeSourceMaps,azimuthRegion,sum,sumMaps,sample,normalize,fold,gaussian,smoothSupported,cameraPoint,blend,predict,gaussianResolution};if(typeof module!=='undefined')module.exports=api;root.ResearchMath=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

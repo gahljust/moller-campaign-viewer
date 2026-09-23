@@ -2,8 +2,8 @@
 
 [Open the viewer](https://gahljust.github.io/moller-campaign-viewer/)
 
-Detector hit maps, dilution factors with statistical uncertainties, and animated
-particle transport from remoll simulations.
+Detector hit maps, secondary-particle sources, and animated particle transport
+from remoll simulations.
 
 `shared-viewer` is the published edition. `main` stays local.
 

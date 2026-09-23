@@ -132,7 +132,7 @@ def publish(site=None):
         raise ValueError('Push shared-viewer to GitHub before publishing.')
     if site is None:
         source, site = defaults()
-        build(source, site, source.parent / 'showermax_dilution/summary.json')
+        build(source, site)
     tag = datetime.now(timezone.utc).strftime('site-%Y%m%dT%H%M%SZ-') + commit[:8]
     with tempfile.TemporaryDirectory(prefix='moller-pages-') as temp:
         archive = Path(temp) / 'site.tar.gz'

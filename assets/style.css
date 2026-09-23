@@ -17,3 +17,101 @@ header{gap:18px;flex-wrap:wrap}header a{margin-left:auto}#stopViewer{font-size:1
 .animationSummary{font-size:14px;margin:20px 0;color:var(--slate)}.animationSummary strong{color:var(--ink);font-weight:600}
 
 .showerSignal .tableBreak td{height:20px;padding:0;background:white;border:0}.showerSignal .signalSection th{background:var(--pale);color:var(--ink);text-align:left;padding:12px}.showerSignal td strong{font-weight:600}
+
+.informationMatrix td{font-variant-numeric:tabular-nums;white-space:nowrap}.informationMatrix td small{display:block;color:#455065;font-size:.85em}.informationMatrix{margin-top:2rem}.informationMatrix .muted{color:#455065;font-size:.9em}
+
+.quartzBreakdowns{grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))}.quartzBreakdowns article{min-width:0}.quartzBreakdowns td:first-child,.quartzBreakdowns th:first-child{white-space:normal}.quartzPopulation{max-width:420px;margin:20px 0}.quartzBreakdowns td strong{font-weight:600}
+
+.secondarySectionHeading{border-top:3px solid var(--teal);margin:36px 0 24px;padding-top:20px}.secondarySectionHeading h2{font-size:30px;font-weight:700;margin:0}.secondarySectionHeading p{margin:4px 0 0}
+
+#secondaries #energyPlot{width:min(100%,650px);height:auto}#secondaries .mapGrid{align-items:start}#secondaries .volumeRow{font-size:15px}
+
+/* Secondary workspace: stable rows and source details at laptop viewport sizes. */
+:is(.secondaryView,.mapsView) header{padding-top:6px;padding-bottom:6px}:is(.secondaryView,.mapsView) .brand{font-size:20px;line-height:26px}:is(.secondaryView,.mapsView) header a,:is(.secondaryView,.mapsView) #stopViewer{font-size:12px}:is(.secondaryView,.mapsView) #stopViewer{padding:3px 8px}
+:is(.secondaryView,.mapsView) main{padding-top:0;padding-bottom:10px;max-width:1540px}
+:is(.secondaryView,.mapsView) nav{margin:0 0 8px;gap:26px}
+:is(.secondaryView,.mapsView) nav button{padding:6px 0;font-size:14px;line-height:21px}
+.secondaryHeading{display:flex;align-items:baseline;gap:18px;margin-bottom:6px}
+.secondaryHeading h1{font-size:25px;line-height:30px;margin:0}
+#secondarySelectionNote{font-size:13px;color:var(--slate)}
+#secondaryCampaign .selection{gap:12px;flex-wrap:nowrap;margin:0 0 8px}
+#secondaryCampaign .selection label{min-width:0}
+#secondaryCampaign #identity:empty{display:none}
+.secondaryView #secondaries select{padding:5px 9px;width:100%;font-size:14px}
+.secondaryView #secondaries label{gap:2px;font-size:12px}
+.secondaryControls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 10px}
+.secondaryControls label{min-width:0}
+#secondaries .secondaryWorkspace{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px;min-height:395px;height:calc(100dvh - 285px);align-items:start}
+#secondaries .secondaryWorkspace h2{font-size:21px;margin:0}
+.secondaryMapHeading{display:flex;align-items:center;justify-content:space-between;min-height:32px;gap:8px}
+#clearSecondarySource{padding:3px 9px;font-size:12px}
+#secondaries #secondaryMap{display:block;width:auto;height:min(550px,calc(100dvh - 335px));max-width:100%;margin:0 auto;object-fit:contain}
+#secondaryMapScope{font-size:12px;margin:2px 0;min-height:36px;line-height:1.4}
+#volumeBasis{font-size:12px;margin:4px 0 8px;line-height:1.2}
+#secondaries .volumeRows{margin:0}
+#secondaries .sourceChoice{display:grid;width:100%;grid-template-columns:minmax(160px,1.6fr) minmax(35px,1fr) 85px;gap:8px;align-items:center;border:0;border-radius:0;text-align:left;padding:4px 6px;margin:0;min-height:27px;font-size:14px;line-height:1.3}
+#secondaries .sourceChoice>span:first-child{white-space:nowrap}
+#secondaries .sourceChoice[aria-pressed=true]{background:#eaf4f7;box-shadow:inset 3px 0 var(--teal);color:var(--ink)}
+#secondaries .sourceChoice:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
+#secondaries .sourceChoice .volumeTrack{height:11px}
+#selectedSourceDetails{border-top:1px solid var(--line);margin-top:9px;padding:7px 6px;min-height:108px;font-size:12px;line-height:1.3;color:var(--slate)}
+#selectedSourceDetails>strong{color:var(--ink);font-weight:600}
+.sourceCount{margin-left:10px}
+.sourceMembers>div{display:flex;justify-content:space-between;gap:10px;margin:4px 0}
+.sourceMembers span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sourceMembers b{white-space:nowrap;font-weight:400}
+#secondaries .secondaryExtra{margin:0;padding:4px 0;font-size:13px}
+#secondaries .secondaryExtra[open]{margin-top:12px}
+#secondaries .secondaryExtra h2{margin-top:12px}
+@media(max-width:1000px){#secondaryCampaign .selection{gap:8px}#secondaryCampaign #refresh{font-size:12px;padding:5px}:is(.secondaryView,.mapsView) main{padding-left:20px;padding-right:20px}#secondaries .secondaryWorkspace{gap:15px}:is(.secondaryView,.mapsView) .brand span{display:inline-block;margin-left:14px}#secondaries .sourceChoice{grid-template-columns:minmax(150px,1.6fr) minmax(25px,1fr) 80px;font-size:13px}}
+@media(max-width:760px){#secondaryCampaign .selection{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.secondaryControls{grid-template-columns:repeat(2,minmax(0,1fr))}#secondaries .secondaryWorkspace{display:block;height:auto;min-height:0}#secondaries #secondaryMap{width:100%;height:auto;max-height:470px}.secondaryHeading{flex-wrap:wrap;gap:4px 12px}:is(.secondaryView,.mapsView) .brand span{display:none}#secondaries .secondarySourcesPanel{margin-top:14px}#selectedSourceDetails{min-height:108px}}
+
+#secondaries .sourceChoice>strong{white-space:nowrap}
+
+/* Hit maps use the same compact campaign/control stack as Secondaries. */
+.mapsHeading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:6px;min-height:30px}
+.mapsHeading h1{font-size:25px;line-height:30px;margin:0}
+.mapsHeading #mapScope{font-size:12px;margin:0;min-height:18px;text-align:right}
+.mapsHeading #mapScope strong{font-size:15px}
+#mapsCampaign .selection{gap:12px;flex-wrap:nowrap;margin:0 0 8px}
+#mapsCampaign .selection label{min-width:0}
+#mapsCampaign #identity{display:none}
+.mapsView #maps select{padding:5px 9px;width:100%;font-size:14px}
+.mapsView #maps label{gap:2px;font-size:12px}
+.mapsControls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr);gap:12px;margin:0 0 10px}
+.mapsControls label{min-width:0}
+.mapsControls .check{margin-top:0;padding:5px 0;align-self:end;gap:8px;min-height:31px;font-size:14px!important}
+#maps .mapsWorkspace{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px;align-items:start}
+#mapTitle{font-size:18px;line-height:26px;min-height:26px;margin:0}
+#mapTitle[hidden]{display:block!important;visibility:hidden}
+#maps #rawMap{display:block;width:auto;height:min(550px,calc(100dvh - 325px));max-width:100%;margin:0 auto;object-fit:contain}
+#maps #regionTable h2{font-size:21px;margin:0}
+#maps #regionTable .regionUnits{margin:3px 0 8px;font-size:12px}
+#maps #regionTable table{table-layout:fixed;margin:0 0 10px}
+#maps #regionTable th,#maps #regionTable td{padding:7px 6px;white-space:normal;overflow-wrap:anywhere;font-size:13px}
+#maps #regionTable th:first-child{width:34%;min-width:0}
+#maps #regionTable td strong{font-size:15px;white-space:nowrap}
+#maps #regionTable td small{font-size:12px;white-space:nowrap}
+#maps>details{margin:6px 0 0;padding:4px 0;font-size:13px}
+@media(max-width:1000px){#mapsCampaign .selection{gap:8px}#mapsCampaign #refresh{font-size:12px;padding:5px}#maps .mapsWorkspace{gap:15px}}
+@media(max-width:760px){#mapsCampaign .selection{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.mapsHeading{align-items:start;flex-direction:column;gap:4px}.mapsHeading #mapScope{text-align:left}.mapsControls{grid-template-columns:repeat(2,minmax(0,1fr))}.mapsControls .check{grid-column:1/-1}#maps .mapsWorkspace{display:block}#maps #rawMap{width:100%;height:auto;max-height:470px}#maps #regionTable{margin-top:12px}}
+
+.secondaryEnergyDirections{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px;border-top:1px solid var(--line);padding-top:16px;margin-top:6px}
+.secondaryEnergyDirections article{min-width:0}
+#secondaries .secondaryEnergyDirections h2{font-size:21px;margin:0 0 8px}
+#secondaries .secondaryEnergyDirections .statusline{font-size:12px;margin:0 0 8px}
+.directionTable table{margin:0;font-size:13px}
+.directionTable td,.directionTable th{white-space:normal;padding:9px 7px}
+.directionTable td strong{white-space:nowrap}
+.directionTable td small{font-size:12px}
+@media(max-width:760px){.secondaryEnergyDirections{grid-template-columns:1fr}}
+
+/* Source selection and supporting panels share the same quiet visual hierarchy. */
+#secondaries .sourceChoice{transition:background-color .12s ease,box-shadow .12s ease}
+#secondaries .sourceChoice:hover{background:#f0f7f9;color:var(--ink)}
+#secondaries .sourceChoice[aria-pressed=true]{background:#eaf4f7;box-shadow:inset 0 0 0 1px var(--teal),inset 4px 0 var(--teal)}
+.directionTable th{background:#eaf4f7;color:var(--ink);border-top:2px solid var(--teal);font-weight:600}
+
+/* Expanded component lists must not overlap the energy/direction row. */
+#secondaries .secondaryWorkspace{height:auto;min-height:max(395px,calc(100dvh - 285px))}
+#secondaries .sourceChoice{padding:2px 6px;min-height:23px;font-size:13px}

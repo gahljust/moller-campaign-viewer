@@ -6,7 +6,8 @@
     "allInteractions": "All interactions",
     "allOpticsFoils": "All optics foils",
     "resultsTab": "Results & uncertainties",
-    "mapsTab": "Hit maps & kinematics",
-    "transportTab": "Particle transport"
+    "mapsTab": "Hit maps",
+    "transportTab": "Particle transport",
+    "secondariesTab": "Secondaries"
   }
 }

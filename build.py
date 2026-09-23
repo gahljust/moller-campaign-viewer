@@ -9,9 +9,9 @@ import shutil
 from urllib.parse import parse_qs
 
 HERE = Path(__file__).resolve().parent
-BUDGET = 64 * 1024 * 1024
+BUDGET = 80 * 1024 * 1024
 PRODUCT_LIMIT = 2 * 1024 * 1024
-ROUTES = {'catalog', 'results', 'maps', 'transport-catalog', 'transport', 'geometry'}
+ROUTES = {'catalog', 'maps', 'secondary-sources', 'transport-catalog', 'transport', 'geometry'}
 
 
 def build(source, output, showermax=None):
@@ -75,7 +75,7 @@ def build(source, output, showermax=None):
     def put(key, value):
         raw = json.dumps(value, separators=(',', ':'), allow_nan=False).encode()
         digest = hashlib.sha256(raw).hexdigest()
-        body = gzip.compress(raw, compresslevel=6, mtime=0)
+        body = gzip.compress(raw, compresslevel=9, mtime=0)
         if len(body) > PRODUCT_LIMIT:
             raise ValueError('Shared product exceeds 2 MiB: ' + key)
         name = digest[:24] + '.json.gz'
@@ -84,7 +84,7 @@ def build(source, output, showermax=None):
             result['compressed_bytes'] += len(body)
             result['largest_asset_bytes'] = max(result['largest_asset_bytes'], len(body))
             if result['compressed_bytes'] > BUDGET:
-                raise ValueError('Shared package exceeds 64 MiB.')
+                raise ValueError('Shared package exceeds 80 MiB.')
             (staging / 'data' / name).write_bytes(body)
         result['products'][key] = {'path': 'data/' + name, 'sha256': digest, 'bytes': len(body)}
 
@@ -99,7 +99,7 @@ def build(source, output, showermax=None):
             if route not in ROUTES or route in ('catalog', 'transport-catalog'):
                 continue
             args = parse_qs(query)
-            if route in ('maps', 'results') and args.get('run', [''])[0] not in selected:
+            if route in ('maps', 'results', 'secondary-sources') and args.get('run', [''])[0] not in selected:
                 continue
             if route == 'transport' and args.get('name', [''])[0] not in transport_names:
                 continue
@@ -161,7 +161,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     source, output = (args.source, args.output) if args.source and args.output else defaults()
     source = args.source or source
-    summary = args.showermax or source.parent/'showermax_dilution/summary.json'
-    if not summary.is_file():
-        parser.error('Prepare ShowerMax statistics with prepare_showermax.py first, or supply --showermax.')
-    build(source, args.output or output, summary)
+    build(source, args.output or output, args.showermax)

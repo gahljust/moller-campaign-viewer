@@ -29,11 +29,11 @@ async function api(route,args={}){
  let response=await fetch(item.path);if(!response.ok)throw Error('Unable to load saved product.');
  let raw=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer(),digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),x=>x.toString(16).padStart(2,'0')).join('');
  if(digest!==item.sha256)throw Error('Saved product hash mismatch.');
- let value=JSON.parse(new TextDecoder().decode(raw));
+ let value=JSON.parse(new TextDecoder().decode(raw));if(route==='maps'&&args.tile)value.plane=args.plane;let sh=value.histograms?.data;if(sh?.secondary_map_encoding==='direction_sum_4sig_v1')sh.secondary_maps.all=M.sumMaps(Object.values(sh.secondary_maps).map(bins=>({bins})));
  if(value.map_recipe==='sum_source_maps_v1'){
   let sources=await Promise.all(value.map_sources.map(name=>api('maps',{run:name,plane:args.plane,tile:''})));
   if(sources.some(s=>JSON.stringify(s.grid)!==JSON.stringify(value.grid)||s.unit!==value.unit))throw Error('Combined source grid or unit mismatch.');
-  value.bins=M.sumMaps(sources);
+  value.bins=M.sumMaps(sources);if(sh&&sources.every(s=>s.histograms?.data?.secondary_maps)){sh.secondary_maps={};for(let key of ['all','forward','backward','zero','uncertain'])sh.secondary_maps[key]=M.sumMaps(sources.map(s=>({bins:s.histograms.data.secondary_maps[key].map(([x,y,w])=>[x,y,w*(s.normalization?.signal_scale??1)])})));};
  }
  return value;
 }
@@ -61,7 +61,7 @@ function interactionPanel(d,unit='PE/s',current=null){
  let sigma=(v,e)=>fmt(v)+(e==null?' · uncertainty unavailable':' ± '+fmt(e,3));
  return `<div class="combinedPanel"><h2>Interaction contributions</h2><div class="cards">${card('Recorded signal',sigma(a.estimate,a.standard_error)+' '+unit,current==null?'Independent source runs':current+' µA beam current')}${card('Interactions',a.components.length,'Fractions of the recorded signal')}</div><div class="contributionStack" role="img" aria-label="Interaction fractions">${a.components.map((r,i)=>`<span style="width:${100*(r.fraction||0)}%;background:${colors[i%colors.length]}" title="${esc(names[r.channel]||r.channel)}: ${esc(percentError(r.fraction,r.fraction_standard_error))}"></span>`).join('')}</div>${table(['Interaction',`Signal [${unit}]`,'Signal fraction ± MC error'],a.components.map((r,i)=>[`<span class="processKey" style="background:${colors[i%colors.length]}"></span>${esc(names[r.channel]||r.channel)}`,esc(sigma(r.estimate,r.standard_error)),`<strong>${esc(percentError(r.fraction,r.fraction_standard_error))}</strong>`]))}</div>`;
 }
-async function showTab(name){tab=name;$('identity').textContent='';$('analysisSelection').hidden=tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
+async function showTab(name){if(!['maps','secondaries','transport'].includes(name))return;tab=name;document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
 async function showResults(){
  let token=revision,selection=catalog.runs.find(r=>r.name===run);
  $('resultBody').innerHTML='<p>Loading saved values…</p>';
@@ -76,22 +76,44 @@ async function showResults(){
  let main=table(['Category',...components.map(c=>names[c]||c)],mainRows);
  let cell=v=>`<strong>${esc(percentError(v?.dilution,v?.dilution_standard_error))}</strong>`;
  let extra=`<tbody class="showerSignal"><tr class="tableBreak"><td colspan="${components.length+1}"></td></tr><tr class="signalSection"><th colspan="${components.length+1}">ShowerMax · PE-weighted dilution${shower?.missing?.length?' · included interactions':''}</th></tr>${['open','closed','transition'].map(region=>{let row=shower?.rows.find(r=>r.region===region);return `<tr><td>ShowerMax ${region}</td>${components.map(c=>`<td>${cell(row?.components[c])}</td>`).join('')}</tr>`}).join('')}</tbody>`;
- main=main.replace('</table>',extra+'</table>');
- $('resultBody').innerHTML=(p?'':'<p>Main detector dilution unavailable for this selection.</p>')+main+(p?'<h3>Main detector dilution correlations</h3><div class="matrixWrap"><canvas id="covMap" width="450" height="450"></canvas><div id="covTip"><p>Blue −1 · white 0 · orange +1</p></div></div>':'');
+ main=p?.includes_showermax?dilutionTable(p):main.replace('</table>',extra+'</table>');
+ $('resultBody').innerHTML=(p?'':'<p>Main detector dilution unavailable for this selection.</p>')+main+(p?informationPanel(d.deconvolution_information,p)+eventCorrelationPanel(d.event_correlated_information,p)+'<details><summary>Dilution MC correlations</summary><div class="matrixWrap"><canvas id="covMap" width="450" height="450"></canvas><div id="covTip"><p>Correlation of simulated dilution errors · blue −1 · white 0 · orange +1</p></div></div></details>':'');
  if(p){let max=Math.max(...p.rows.flatMap(row=>Object.values(row.components).map(v=>v.dilution_standard_error)));$('identity').textContent='Dilution MC ±'+fmt(max*100,3)+'% max';drawCov(p)}
 }
+function dilutionTable(p){
+ const components=p.components;
+ const row=r=>`<tr><td>${esc(r.category.replaceAll('_',' '))}</td>${components.map(c=>{let v=r.components[c];return `<td><strong>${esc(percentError(v.dilution,v.dilution_standard_error))}</strong></td>`}).join('')}</tr>`;
+ const main=p.rows.filter(r=>!r.category.startsWith('showermax_')),shower=p.rows.filter(r=>r.category.startsWith('showermax_'));
+ return `<div class="scroll"><table><thead><tr><th>Category</th>${components.map(c=>`<th>${esc(names[c]||c)}</th>`).join('')}</tr></thead><tbody>${main.map(row).join('')}</tbody>${shower.length?`<tbody class="showerSignal"><tr class="tableBreak"><td colspan="${components.length+1}"></td></tr><tr class="signalSection"><th colspan="${components.length+1}">ShowerMax · PE-weighted dilution</th></tr>${shower.map(row).join('')}</tbody>`:''}</table></div>`;
+}
+function informationPanel(info,p){
+ if(!info?.available)return `<section><h2>Deconvolution information</h2><p>${esc(info?.reason||'Counting forecast unavailable for this selection.')}</p></section>`;
+ const labels=p.components.map(c=>names[c]||c);
+ const matrix=(values,errors)=>table(['Interaction',...labels],values.map((row,i)=>[esc(labels[i]),...row.map((v,j)=>`<strong>${esc(fmt(v))}</strong>${errors?`<small>± ${esc(fmt(errors[i][j],3))}</small>`:''}`)]));
+ const inverse=info.counting_asymmetry_covariance;
+ return `<section class="informationMatrix"><h2>Deconvolution information</h2>
+ <p><strong>${info.joint_signal?esc(info.layout_label)+' · conditional forecast':'Historical counting forecast'}</strong> · ${esc(info.beam_days)} beam days · ${esc(100*info.polarization)}% polarization · ${esc(info.display_current_uA)} µA</p>
+ <p><strong>${info.joint_signal?'M = fᵀ C<sub>A</sub>⁻¹ f':'M<sub>ij</sub> = ∑<sub>r</sub> f<sub>ri</sub> f<sub>rj</sub> / σ<sub>A,r</sub>²'}</strong> · ppb⁻²${info.matrix_mc_standard_error?' · ± 1σ MC':''}</p>
+ ${matrix(info.matrix,info.matrix_mc_standard_error)}
+ <p class="muted">${info.joint_signal?'Main crossings + ShowerMax PE response; same-event correlations included. Assumes common component asymmetries across regions. Excludes kinematic-shape and detector-noise uncertainties.':'Dilution-only, ideal independent crossings. Excludes detector noise, experimental correlations, kinematic shapes and other backgrounds.'}</p>
+ <details><summary>Asymmetry covariance · counting forecast</summary>
+ ${inverse?`<p>M⁻¹ · ppb² · fixed dilution factors</p>${matrix(inverse)}${table(['Interaction','Counting-only asymmetry σ [ppb]'],labels.map((label,i)=>[esc(label),esc(fmt(info.counting_asymmetry_standard_error_ppb[i]))]))}<p>Fixed dilution factors; these are not measured errors.${info.joint_signal?' MC uncertainty on this forecast is not yet propagated.':' A total fit error also needs the asymmetry values.'}</p>`:'<p>The matrix is rank deficient; these components cannot all be separated. No inverse is reported.</p>'}
+ </details></section>`;
+}
 function drawCov(p,id='covMap',tip='covTip'){let cv=$(id),cx=cv.getContext('2d'),n=p.dilution_covariance.length,w=cv.width/n;for(let i=0;i<n;i++)for(let j=0;j<n;j++){let v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]),r=den?v/den:0,a=Math.min(1,Math.abs(r)),color=r<0?[7,125,158]:[244,120,31];cx.fillStyle=`rgb(${color.map(c=>Math.round(255+(c-255)*a)).join(',')})`;cx.fillRect(j*w,i*w,w+.3,w+.3)}cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),j=Math.min(n-1,Math.floor((e.clientX-b.left)/b.width*n)),i=Math.min(n-1,Math.floor((e.clientY-b.top)/b.height*n)),v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]);$(tip).innerHTML=`<p>${esc(p.coordinate_order[i].category)} · ${esc(names[p.coordinate_order[i].component])}<br>with ${esc(p.coordinate_order[j].category)} · ${esc(names[p.coordinate_order[j].component])}</p><p>Correlation: <strong>${den?fmt(v/den):'Undefined (zero variance)'}</strong><br>Covariance: ${fmt(v)} (fraction²)</p>`}}
-function planeLabel(p){return p==='circle'?'ShowerMax PE response':p==='full_plane'?'ShowerMax virtual plane 30':p.replaceAll('_',' ')}
+function planeLabel(p){return p==='main_detector'?'Main detector · all quartz tiles':p==='circle'?'ShowerMax PE response':p==='full_plane'?'ShowerMax virtual plane 30':/^ring[1-6]$/.test(p)?'Ring '+p[4]+' · quartz tiles':p.replaceAll('_',' ')}
+function detectorPlanes(planes){return [...planes.filter(p=>p==='main_detector'),...planes.filter(p=>p!=='main_detector')]}
 async function fetchMap(name,plane,tile=''){let key=[name,plane,tile].join('|');if(cache.has(key))return cache.get(key);let d=await api('maps',{run:name,plane,tile});cache.set(key,d);while(cache.size>5)cache.delete(cache.keys().next().value);return d}
 async function loadMap(){
- let token=++mapRevision,plane=$('plane').value||'circle',tile=$('tile').value||'';
+ let token=++mapRevision,plane=$('plane').value||'main_detector',tile=plane==='circle'?$('tile').value||'':'';
  $('identity').textContent='';$('mapScope').textContent='Loading saved map…';$('regionTable').innerHTML='';
  let d=await fetchMap(run,plane,tile);if(token!==mapRevision)return;mapData=d;
- $('plane').innerHTML=d.planes.map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');$('plane').value=d.planes.includes(plane)?plane:d.planes[0];
- $('tile').innerHTML='<option value="">Whole plane</option>'+d.tiles.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');$('tile').value=tile;
- if(!d.planes.includes(plane)&&d.planes.length){await loadMap();return}
+ const planes=detectorPlanes(d.planes);
+ $('plane').innerHTML=planes.map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');$('plane').value=planes.includes(plane)?plane:planes[0];
+ $('tile').innerHTML='<option value="">All response planes</option>'+d.tiles.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');$('tile').value=tile;$('tile').parentElement.hidden=plane!=='circle';
+ if(!planes.includes(plane)&&planes.length){await loadMap();return}
  $('foldSectors').disabled=!!tile||!Number.isFinite(d.mirror_axis_rad);
- drawMaps(d);showMapDetails(d);
+ drawMaps(d);
 }
 function dense(d){let a=new Float64Array(d.grid.nx*d.grid.ny);for(let[x,y,v]of d.bins)if(x>=0&&y>=0&&x<d.grid.nx&&y<d.grid.ny)a[y*d.grid.nx+x]+=v;return a}
 function compactUncertainty(estimate,error){
@@ -101,7 +123,7 @@ function compactUncertainty(estimate,error){
 function drawMaps(d=mapData){
  if(!d)return;let raw=dense(d),folded=$('foldSectors').checked&&!$('foldSectors').disabled;
  let display=folded?M.fold(raw,d.grid.nx,d.mirror_axis_rad):raw;
- $('mapTitle').textContent=folded?'Sector-pooled hit map':'Raw simulation';
+ $('mapTitle').textContent=folded?'Sector-pooled hit map':''; $('mapTitle').hidden=!folded;
  drawMap('rawMap',display,d.grid,Math.max(...display,1e-30),false,d.unit);
  let a=d.signal_summary||d.interaction_summary||{estimate:M.sum(raw),standard_error:null};
  compactUncertainty(a.estimate,a.standard_error);
@@ -129,40 +151,137 @@ function regionPanel(d){
  return `<h2>${d.unit==='PE/s'?'Signal':'Rate'} by region</h2><p class="regionUnits">${power?`×10<sup>${power}</sup> `:''}${esc(d.unit)}${note==='± 1σ MC'?' · '+note:''}</p>${table(['Interaction','Open','Closed','Transition'],tableRows)}${note&&note!=='± 1σ MC'?`<p class="statusline">${esc(note)}</p>`:''}`;
 }
 function viridis(t){const stops=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];t=Math.max(0,Math.min(.999999,t))*4;let i=Math.floor(t),f=t-i;return stops[i].map((v,k)=>Math.round(v+(stops[i+1][k]-v)*f))}
-function drawMap(id,a,g,max,smooth,unit,support=null){let cv=$(id),cx=cv.getContext('2d'),L=65,T=20,S=445;cx.clearRect(0,0,cv.width,cv.height);cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);if(!a||!M.sum(a)){cx.fillStyle='#455065';cx.font='16px Calibri';cx.fillText(a?'No map recorded for this selection':'Choose a whole plane for folding',85,230);return}let im=cx.createImageData(S,S);for(let y=0;y<S;y++)for(let x=0;x<S;x++){let xx=(x+.5)/S*g.nx-.5,yy=(1-(y+.5)/S)*g.ny-.5,v=smooth&&g.nx===g.ny?M.sample(a,g.nx,xx,yy):a[Math.max(0,Math.min(g.ny-1,Math.round(yy)))*g.nx+Math.max(0,Math.min(g.nx-1,Math.round(xx)))],rgb=v>0&&(!support||support[Math.max(0,Math.min(g.ny-1,Math.round(yy)))*g.nx+Math.max(0,Math.min(g.nx-1,Math.round(xx)))])?viridis(Math.log1p(v/max*999)/Math.log(1000)):[255,255,255],k=(y*S+x)*4;im.data.set([...rgb,255],k)}cx.putImageData(im,L,T);cx.strokeStyle='#d9dee6';cx.strokeRect(L,T,S,S);cx.font='14px Calibri';cx.fillStyle='#455065';for(let i=0;i<=4;i++){let f=i/4,x=L+f*S,y=T+(1-f)*S;cx.textAlign='center';cx.fillText(Math.round(g.x[0]+f*(g.x[1]-g.x[0])),x,T+S+23);cx.textAlign='right';cx.fillText(Math.round(g.y[0]+f*(g.y[1]-g.y[0])),L-8,y+5)}cx.textAlign='center';cx.fillText((g.nx===16?'Local':'Global')+' x [mm]',L+S/2,T+S+53);cx.save();cx.translate(16,T+S/2);cx.rotate(-Math.PI/2);cx.fillText((g.nx===16?'Local':'Global')+' y [mm]',0,0);cx.restore();for(let y=0;y<S;y++){cx.fillStyle=`rgb(${viridis(1-y/S)})`;cx.fillRect(535,T+y,14,1)}cx.textAlign='left';cx.fillStyle='#455065';cx.fillText(fmt(max,3),555,30);cx.fillText('0',555,T+S);cx.fillText('log color · '+unit+'/bin',L,T+S+78);cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),x=(e.clientX-b.left)/b.width*cv.width,y=(e.clientY-b.top)/b.height*cv.height,i=Math.floor((x-L)/S*g.nx),j=Math.floor((1-(y-T)/S)*g.ny);cv.title=i>=0&&j>=0&&i<g.nx&&j<g.ny?fmt(a[j*g.nx+i])+' '+unit+'/bin':''}}
-function showMapDetails(d){
- let dec=d.decomposition,k=d.kinematics?.calculated,parts=[],h=d.histograms?.available?d.histograms.data:null;
- if(h){
-  parts.push(`<div class="cards">${card('Secondary share',h.secondary_fraction==null?'Unavailable':fmt(h.secondary_fraction*100)+'%',d.unit==='PE/s'?'Fraction of PE response':'Fraction of crossing rate')}${card('Crossings',h.entries.toLocaleString(),'Recorded sample')}${card('Mean kinetic energy',fmt(h.mean_mev)+' MeV','Signal weighted')}${card('Energy RMS',fmt(h.rms_mev)+' MeV','Signal weighted')}</div>`);
-  parts.push('<div class="two histogramGrid"><article><h2>Secondary creation volumes</h2><p class="statusline"><strong>Share of secondary signal [%]</strong></p><div id="volumePlot"></div></article><article><h2>Kinetic energy at the detector</h2><canvas id="energyPlot" width="650" height="410"></canvas><p id="energyTail" class="statusline"></p></article></div>');
- }else{
-  parts.push('<div class="empty"><strong>Creation-volume histogram unavailable</strong><br>'+esc(d.histograms?.reason||'No saved creation-volume analysis.')+'</div>');
-  if(d.energy_spectra&&Object.keys(d.energy_spectra).length)parts.push('<h2>Historical ShowerMax energy spectrum</h2><p>'+esc(d.energy_scope)+'</p><canvas id="energyPlot" width="650" height="410"></canvas>');
- }
- if(k)parts.push(`<div class="cards">${card('Calculated asymmetry',fmt(k.asymmetry_ppb)+' ppb','± '+fmt(k.asymmetry_error_ppb)+' ppb (MC)')}${card('Kinematic factor K',fmt(k.kinematic_factor),'± '+fmt(k.kinematic_factor_error)+' (MC)')}</div>`);
- if(dec){let total=Object.values(dec.classes||{}).reduce((s,x)=>s+x.signal,0);parts.push('<details><summary>Origin and particle composition</summary>'+table(['Origin / particle','Signal fraction','Recorded crossings'],[...Object.entries(dec.classes||{}),...Object.entries(dec.particles||{})].map(([key,x])=>[esc(({'11':'Electron','22':'Photon','-11':'Positron','2112':'Neutron'})[key]||key),fmt(x.signal/(total||1)*100)+'%',fmt(x.hits)]))+'</details>')}
- if(d.track_kinematics)parts.push('<details><summary>Track kinematics</summary>'+table(['Coordinate','Mean','RMS'],Object.entries(d.track_kinematics.metrics||{}).filter(([key])=>!key.startsWith('gem_')).map(([key,v])=>[esc(key),fmt(v.mean),fmt(v.rms)]))+'</details>');
- $('mapDetails').innerHTML=parts.join('');
- if(h){drawVolumes(h);drawEnergy(h)}else if($('energyPlot')){
-  let all=new Float64Array(62),sec=new Float64Array(62);for(let rows of Object.values(d.energy_spectra))for(let[b,h,hs,w,ws]of rows)if(b<60)all[b+1]+=w;
-  drawEnergy({energy:all,secondary_energy:sec,weight:M.sum(all),legacy:true});
- }
+let secondaryFrame=null;
+function secondaryMapFrame(h){
+ const g=h.secondary_map_grid,bins=h.secondary_maps?.all;
+ if(!g||!bins?.length)return null;
+ const dx=(g.x[1]-g.x[0])/g.nx,dy=(g.y[1]-g.y[0])/g.ny;
+ let radius=0;
+ for(const [i,j,w] of bins)if(w>0)radius=Math.max(radius,Math.abs(g.x[0]+i*dx),Math.abs(g.x[0]+(i+1)*dx),Math.abs(g.y[0]+j*dy),Math.abs(g.y[0]+(j+1)*dy));
+ return Math.min(Math.max(Math.abs(g.x[0]),Math.abs(g.x[1]),Math.abs(g.y[0]),Math.abs(g.y[1])),Math.ceil((radius+100)/250)*250);
 }
-function drawVolumes(h){
- const groups=h.volume_groups||h.volumes.map(([name,fraction])=>({name,fraction,members:[],volume_count:1})),max=Math.max(...groups.map(g=>g.fraction),1e-30);
- const row=g=>`<details class="volumeGroup"><summary class="volumeRow"><span>${esc(g.name)}</span><div class="volumeTrack"><i style="width:${g.fraction/max*100}%"></i></div><strong>${fmt(g.fraction*100,3)}%</strong></summary><div class="volumeMembers"><strong>${g.volume_count} exact volume${g.volume_count===1?'':'s'}</strong>${g.members.map(([n,f])=>`<div><span>${esc(n)}</span><b>${fmt(f*100,3)}%</b></div>`).join('')}${g.volume_count>3?`<small>Plus ${g.volume_count-3} volumes contributing ${fmt(g.remaining_fraction*100,3)}%. Largest three shown.</small>`:''}</div></details>`;
- $('volumePlot').innerHTML=h.secondary_weight?`<div class="volumeRows">${groups.slice(0,10).map(row).join('')}${groups.length>10?`<details class="smallerVolumes"><summary>Show ${groups.length-10} smaller components · ${fmt(M.sum(groups.slice(10).map(g=>g.fraction))*100,3)}%</summary>${groups.slice(10).map(row).join('')}</details>`:''}</div><small>${h.volume_count} creation volumes · grouped before ranking<br>Select a component to inspect its largest source volumes.</small>`:'<div class="empty">No secondary signal in this sample.</div>';
+function frameSecondaryValues(a,g){
+ if(!secondaryFrame)return {a,g};
+ const dx=(g.x[1]-g.x[0])/g.nx,dy=(g.y[1]-g.y[0])/g.ny;
+ // Crop only empty margins, using the full all-momentum map so selections never move the frame.
+ const x0=Math.max(0,Math.floor((-secondaryFrame-g.x[0])/dx)),x1=Math.min(g.nx,Math.ceil((secondaryFrame-g.x[0])/dx));
+ const y0=Math.max(0,Math.floor((-secondaryFrame-g.y[0])/dy)),y1=Math.min(g.ny,Math.ceil((secondaryFrame-g.y[0])/dy));
+ const nx=x1-x0,ny=y1-y0,b=new Float64Array(nx*ny);
+ for(let j=y0;j<y1;j++)for(let i=x0;i<x1;i++)b[(j-y0)*nx+i-x0]=a[j*g.nx+i];
+ return {a:b,g:{...g,nx,ny,x:[g.x[0]+x0*dx,g.x[0]+x1*dx],y:[g.y[0]+y0*dy,g.y[0]+y1*dy]}};
+}
+function drawMap(id,a,g,max,smooth,unit,support=null,linear=false,region="all"){if(id==='secondaryMap'&&a)({a,g}=frameSecondaryValues(a,g));let cv=$(id),cx=cv.getContext('2d'),L=65,T=20,S=445;cx.clearRect(0,0,cv.width,cv.height);cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);if(!a||!M.sum(a)){cx.fillStyle='#455065';cx.font='16px Calibri';cx.fillText(a?'No map recorded for this selection':'Choose a whole plane for folding',85,230);return}let im=cx.createImageData(S,S);for(let y=0;y<S;y++)for(let x=0;x<S;x++){let xx=(x+.5)/S*g.nx-.5,yy=(1-(y+.5)/S)*g.ny-.5,v=smooth&&g.nx===g.ny?M.sample(a,g.nx,xx,yy):a[Math.max(0,Math.min(g.ny-1,Math.round(yy)))*g.nx+Math.max(0,Math.min(g.nx-1,Math.round(xx)))],rgb=v>0&&(region==='all'||M.azimuthRegion(g.x[0]+(x+.5)/S*(g.x[1]-g.x[0]),g.y[1]-(y+.5)/S*(g.y[1]-g.y[0]))===region)&&(!support||support[Math.max(0,Math.min(g.ny-1,Math.round(yy)))*g.nx+Math.max(0,Math.min(g.nx-1,Math.round(xx)))])?viridis(linear?v/max:Math.log1p(v/max*999)/Math.log(1000)):[255,255,255],k=(y*S+x)*4;im.data.set([...rgb,255],k)}cx.putImageData(im,L,T);if(id==='secondaryMap'){cx.save();cx.lineWidth=1;for(let i=1;i<8;i++){let f=i/8;cx.strokeStyle=i%2===0?'rgba(69,80,101,0.24)':'rgba(69,80,101,0.12)';cx.beginPath();cx.moveTo(L+f*S,T);cx.lineTo(L+f*S,T+S);cx.moveTo(L,T+f*S);cx.lineTo(L+S,T+f*S);cx.stroke()}cx.restore()}cx.strokeStyle='#d9dee6';cx.strokeRect(L,T,S,S);cx.font=(['secondaryMap','rawMap'].includes(id)?'20':'14')+'px '+getComputedStyle(document.body).fontFamily;cx.fillStyle='#455065';for(let i=0;i<=4;i++){let f=i/4,x=L+f*S,y=T+(1-f)*S;cx.textAlign='center';cx.fillText(Math.round(g.x[0]+f*(g.x[1]-g.x[0])),x,T+S+23);cx.textAlign='right';cx.fillText(Math.round(g.y[0]+f*(g.y[1]-g.y[0])),L-8,y+5)}cx.textAlign='center';cx.fillText((g.nx===16?'Local':'Global')+' x [mm]',L+S/2,T+S+53);cx.save();cx.translate(16,T+S/2);cx.rotate(-Math.PI/2);cx.fillText((g.nx===16?'Local':'Global')+' y [mm]',0,0);cx.restore();for(let y=0;y<S;y++){cx.fillStyle=`rgb(${viridis(1-y/S)})`;cx.fillRect(535,T+y,14,1)}cx.textAlign='right';cx.fillStyle='#455065';cx.fillText(fmt(max,3),cv.width-8,16);cx.textAlign='left';cx.fillText('0',555,T+S);cx.fillText((linear?'':'log color · ')+unit+'/bin',L,T+S+78);cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),x=(e.clientX-b.left)/b.width*cv.width,y=(e.clientY-b.top)/b.height*cv.height,i=Math.floor((x-L)/S*g.nx),j=Math.floor((1-(y-T)/S)*g.ny);cv.title=i>=0&&j>=0&&i<g.nx&&j<g.ny&&(region==='all'||M.azimuthRegion(g.x[0]+(x-L)/S*(g.x[1]-g.x[0]),g.y[1]-(y-T)/S*(g.y[1]-g.y[0]))===region)?fmt(a[j*g.nx+i])+' '+unit+'/bin':''}}
+const quartzLabels={forward_primary:'Forward primaries',forward_secondary:'Forward secondaries',backward_electron:'Backward electrons (backsplash)',backward_other:'Other backward particles',uncertain_direction:'Entry direction unresolved',zero_pz:'Zero longitudinal momentum',first_tile:'First tile in this ring',additional_tile:'Another tile in this ring',same_tile_return:'Return to the same tile',duplicate_record:'Identical repeated record'};
+function quartzBreakdown(q){
+ const byKey=Object.fromEntries(q.direction.map(row=>[row.key,row]));
+ const electron=byKey.backward_electron,other=byKey.backward_other;
+ const backward=electron&&other?{key:'backward',entries:electron.entries+other.entries,
+  fraction:electron.fraction==null||other.fraction==null?null:electron.fraction+other.fraction,
+  fraction_standard_error:other.fraction===0&&other.fraction_standard_error===0?electron.fraction_standard_error:electron.fraction===0&&electron.fraction_standard_error===0?other.fraction_standard_error:null}:null;
+ const rows=[['Forward primaries',byKey.forward_primary],['Forward secondaries',byKey.forward_secondary],['Backward particles',backward],['Unresolved',byKey.uncertain_direction]];
+ const value=r=>r?.fraction==null?'Unavailable':`<strong>${fmt(100*r.fraction,3)}%${r.fraction_standard_error==null?'':' ± '+fmt(100*r.fraction_standard_error,2)+'%'}</strong>${r.fraction_standard_error==null?'<small>MC error unavailable</small>':''}`;
+ return '<h2>Direction at tiles</h2><p class="statusline">All main-quartz crossings · ±1σ MC</p>'+table(['Population','Rate share','Sample entries'],rows.map(([label,row])=>[label,value(row),row?row.entries.toLocaleString():'Unavailable']));
+}
+
+let secondaryRevision=0,secondaryState={plane:'main_detector',momentum:'all',normalization:'total',region:'all',source:null};
+const sourceMapCache=new Map();
+async function loadSourceMap(name,plane){
+ const key=name+'|'+plane;
+ if(!sourceMapCache.has(key)){
+  const request=api('secondary-sources',{run:name,plane}).then(M.decodeSourceMap).then(async value=>value.source_runs?M.mergeSourceMaps(await Promise.all(value.source_runs.map(n=>loadSourceMap(n,plane)))):value.source_planes?M.mergeSourceMaps(await Promise.all(value.source_planes.map(p=>loadSourceMap(name,p)))):value);
+  sourceMapCache.set(key,request);request.catch(()=>sourceMapCache.delete(key));
+  if(sourceMapCache.size>12)sourceMapCache.delete(sourceMapCache.keys().next().value);
+ }return sourceMapCache.get(key);
+}
+async function loadSecondaries(){
+ const token=++secondaryRevision;let sourceDrawRevision=0;const sourceRun=run;$('volumeMomentum').disabled=true;
+ $('secondaryDetails').innerHTML='<p>Loading secondaries…</p>';
+ const d=await fetchMap(run,secondaryState.plane,'');if(token!==secondaryRevision)return;
+ $('secondaryPlane').innerHTML=detectorPlanes(d.planes).filter(p=>!p.endsWith('_bf')&&!p.endsWith('_ff')).map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');
+ $('secondaryPlane').value=secondaryState.plane;
+ const h=d.histograms?.available?d.histograms.data:null;
+ if(!h){$('secondaryDetails').innerHTML=warning(d.histograms?.reason||'Secondary analysis unavailable.');return;}
+ secondaryFrame=secondaryMapFrame(h);
+ $('volumeMomentum').disabled=false;
+ $('secondarySelectionNote').textContent=h.quartz?'Charged particles ≥1 MeV':'';
+ $('secondaryDetails').innerHTML=`<div class="mapGrid secondaryWorkspace"><article class="secondaryMapPanel"><div class="secondaryMapHeading"><h2>Secondary hit map</h2><button id="clearSecondarySource" hidden>All sources</button></div><canvas id="secondaryMap" width="620" height="570"></canvas><p id="secondaryMapScope" class="statusline"></p></article><article class="secondarySourcesPanel"><h2>Secondary creation volumes</h2><p id="volumeBasis" class="statusline"></p><div id="volumePlot"></div><div id="selectedSourceDetails" aria-live="polite"></div></article></div><div class="secondaryEnergyDirections"><article><h2>Secondary kinetic energy</h2><canvas id="energyPlot" width="650" height="410"></canvas><p id="energyStatus" class="statusline" hidden></p></article>${h.quartz?'<article class="directionTable">'+quartzBreakdown(h.quartz)+'</article>':''}</div>`;
+ for(const [id,key] of [['volumeMomentum','momentum'],['volumeRegion','region'],['volumeNormalization','normalization']]){
+  $(id).value=secondaryState[key];$(id).onchange=()=>{secondaryState[key]=$(id).value;redraw()};
+ }
+ $('clearSecondarySource').onclick=()=>{secondaryState.source=null;redraw()};
+ function redraw(){
+  const drawToken=++sourceDrawRevision;
+  const {momentum,region,normalization,source}=secondaryState;
+  $('clearSecondarySource').hidden=!source;
+  const regional=region==='all'?h:h.secondary_regions?.[region];
+  const selected=momentum==='all'?regional:regional?.secondary_momentum?.[momentum];
+  $('volumeBasis').textContent=(region==='all'?'All regions':region[0].toUpperCase()+region.slice(1))+' · '+(normalization==='total'?'of total signal':'of selected secondary signal');
+  let sourceSelection=source;
+  if(!selected)$('volumePlot').innerHTML=warning('Regional secondary analysis unavailable.');
+  else {
+   const denominator=normalization==='total'?regional.weight:selected.secondary_weight;
+   const scale=denominator?selected.secondary_weight/denominator:0;
+   const groups=(selected.volume_groups||[]).map(g=>({...g,fraction:g.fraction*scale,members:g.members.map(([n,f])=>[n,f*scale]),remaining_fraction:(g.remaining_fraction||0)*scale}));
+   const visibleGroups=compactSecondaryVolumes(groups);
+   if(source==='Other volumes')sourceSelection=visibleGroups.find(g=>g.name===source)?.source_names||[];
+   drawVolumes({...selected,volume_groups:visibleGroups},name=>{secondaryState.source=secondaryState.source===name?null:name;redraw()},source);
+  }
+  const cv=$('secondaryMap');cv.getContext('2d').clearRect(0,0,cv.width,cv.height);cv.onmousemove=null;cv.title='';
+  $('secondaryMapScope').textContent='Loading selection…';
+  $('energyPlot').hidden=true;$('energyStatus').hidden=false;$('energyStatus').textContent='Loading selection…';
+  loadSourceMap(sourceRun,secondaryState.plane).then(data=>{
+   if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;
+   const subset=M.selectSourceMap(data,sourceSelection,region,momentum),values=dense(subset);
+   drawMap('secondaryMap',values,subset.grid,Math.max(...values,1e-30),false,subset.unit,null,true);
+   $('secondaryMapScope').textContent=(source?source+' · ':'')+fmt(subset.weight)+' '+subset.unit+' · '+(region==='all'?'All regions':region)+' · '+momentum+' momentum · 25 × 25 mm bins';
+   if(!subset.energy){$('energyStatus').textContent='Matching energy spectrum unavailable; updated extraction required.';return;}
+   $('energyPlot').hidden=false;$('energyStatus').hidden=true;drawEnergy(subset);
+  }).catch(error=>{if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;$('secondaryMapScope').textContent=error.message||error;$('energyStatus').textContent='Matching energy spectrum unavailable.';});
+
+ }
+ redraw();
+}
+function compactSecondaryVolumes(groups){
+ const rows=groups.map(g=>({...g,name:g.name==='Apparatus surroundings'?'Surrounding air':g.name})).sort((a,b)=>b.fraction-a.fraction);
+ const total=M.sum(rows.map(g=>g.fraction));let covered=0;
+ const kept=[],rest=[];
+ for(const g of rows){if(covered<total*.95||g.name==='Downstream window & flange'){kept.push(g);covered+=g.fraction}else rest.push(g)}
+ if(!kept.some(g=>g.name==='Downstream window & flange'))kept.push({name:'Downstream window & flange',fraction:0,members:[],volume_count:0,remaining_fraction:0});
+ const fraction=M.sum(rest.map(g=>g.fraction)),members=rest.flatMap(g=>g.members).sort((a,b)=>b[1]-a[1]).slice(0,3);
+ return [...kept,...(rest.length?[{name:'Other volumes',source_names:rest.map(g=>g.name),fraction,members,volume_count:M.sum(rest.map(g=>g.volume_count)),remaining_fraction:Math.max(0,fraction-M.sum(members.map(m=>m[1])))}]:[])];
+}
+function drawVolumes(h,onSelect=null,activeSource=null){
+ if(onSelect){
+  const groups=h.volume_groups||[],max=Math.max(...groups.map(g=>g.fraction),.001)*1.08;
+  $('volumePlot').innerHTML=groups.length?'<div class="volumeRows">'+groups.map(g=>`<button type="button" class="volumeRow sourceChoice" data-source="${esc(g.name)}" aria-pressed="${g.name===activeSource}"><span>${esc(g.name)}</span><span class="volumeTrack"><i style="width:${g.fraction/max*100}%"></i></span><strong>${fmt(g.fraction*100,3)}%</strong></button>`).join('')+'</div>':'<div class="empty">No selected signal in this sample.</div>';
+  const group=groups.find(g=>g.name===activeSource);
+  $('selectedSourceDetails').innerHTML=group?`<strong>${esc(group.name)}</strong><span class="sourceCount">${group.volume_count} creation volumes</span><div class="sourceMembers">${group.members.map(([n,f])=>`<div><span title="${esc(n)}">${esc(n)}</span><b>${fmt(f*100,3)}%</b></div>`).join('')}</div>`:'<span>Select a source to isolate its hits.</span>';
+  $('volumePlot').querySelectorAll('[data-source]').forEach(el=>el.onclick=()=>onSelect(el.dataset.source));return;
+ }
+
+ const groups=h.volume_groups||h.volumes.map(([name,fraction])=>({name,fraction,members:[],volume_count:1})),max=Math.max(...groups.map(g=>g.fraction),.001)*1.08;
+ const row=g=>`<details class="volumeGroup" ${g.name===activeSource?'open':''}><summary class="volumeRow" data-source="${esc(g.name)}" aria-label="${esc(g.name)}${g.name===activeSource?' · selected':''}"><span>${esc(g.name)}</span><div class="volumeTrack"><i style="width:${g.fraction/max*100}%"></i></div><strong>${fmt(g.fraction*100,3)}%</strong></summary><div class="volumeMembers"><strong>${g.volume_count} exact volume${g.volume_count===1?'':'s'}</strong>${g.members.map(([n,f])=>`<div><span>${esc(n)}</span><b>${fmt(f*100,3)}%</b></div>`).join('')}${g.volume_count>3?`<small>Plus ${g.volume_count-3} volumes contributing ${fmt(g.remaining_fraction*100,3)}%. Largest three shown.</small>`:''}</div></details>`;
+ $('volumePlot').innerHTML=h.secondary_weight?`<div class="volumeRows">${groups.slice(0,10).map(row).join('')}${groups.length>10?`<details class="smallerVolumes"><summary>Show ${groups.length-10} smaller components · ${fmt(M.sum(groups.slice(10).map(g=>g.fraction))*100,3)}%</summary>${groups.slice(10).map(row).join('')}</details>`:''}</div><small>${h.volume_count} creation volumes · grouped before ranking<br>Select a component to filter the map and inspect its source volumes.</small>`:'<div class="empty">No selected signal in this sample.</div>';
+ if(onSelect)$('volumePlot').querySelectorAll('summary[data-source]').forEach(el=>el.onclick=e=>{e.preventDefault();onSelect(el.dataset.source)});
 }
 function drawEnergy(h){
- let cv=$('energyPlot'),cx=cv.getContext('2d'),L=72,R=625,T=65,B=325,total=h.weight||1,all=Array.from(h.energy).slice(1,61).map(v=>v/total*100),sec=Array.from(h.secondary_energy).slice(1,61).map(v=>v/total*100),max=Math.max(...all,.01)*1.12;
- cx.clearRect(0,0,650,410);cx.font='15px Calibri';cx.fillStyle='#455065';cx.fillText('Signal / bin [%]',L,22);
- for(let j=0;j<=4;j++){let y=B-j/4*(B-T);cx.strokeStyle='#d9dee6';cx.beginPath();cx.moveTo(L,y);cx.lineTo(R,y);cx.stroke();cx.textAlign='right';cx.fillText(fmt(max*j/4,3),L-9,y+5)}
- for(let j=-3;j<=4;j++){let x=L+(j+3)/7.30102999566*(R-L);cx.strokeStyle='#d9dee6';cx.beginPath();cx.moveTo(x,T);cx.lineTo(x,B);cx.stroke();cx.textAlign='center';cx.fillStyle='#455065';cx.fillText(j>=0?String(10**j):String(10**j),x,B+25)}
- for(let[a,color]of[[all,'#077d9e'],[sec,'#f4781f']]){cx.strokeStyle=color;cx.lineWidth=2.5;cx.beginPath();cx.moveTo(L,B);for(let i=0;i<60;i++){let y=B-a[i]/max*(B-T);cx.lineTo(L+i/60*(R-L),y);cx.lineTo(L+(i+1)/60*(R-L),y)}cx.lineTo(R,B);cx.stroke()}
- cx.textAlign='right';cx.fillStyle='#077d9e';cx.fillText('━ All crossings',R,20);if(!h.legacy){cx.fillStyle='#f4781f';cx.fillText('━ Secondaries',R,43)}
- cx.fillStyle='#455065';cx.textAlign='center';cx.fillText('Kinetic energy [MeV] · logarithmic bins',(L+R)/2,385);
- if($('energyTail'))$('energyTail').textContent=`Below 1 keV: ${fmt(h.energy[0]/total*100,3)}% · At least 20 GeV: ${fmt(h.energy[61]/total*100,3)}%`;
+ const cv=$('energyPlot'),cx=cv.getContext('2d'),L=72,R=625,T=35,B=325;cx.lineWidth=1;
+ const edges=h.energy_edges_mev,values=Array.from(h.energy).slice(1,61),total=h.weight||1;
+ cx.clearRect(0,0,cv.width,cv.height);
+ if(!edges||edges.length!==values.length+1){$('energyStatus').hidden=false;$('energyStatus').textContent='Energy bin edges unavailable.';return;}
+ const shares=values.map(v=>v/total*100),max=Math.max(...shares,.01)*1.12,xmax=edges[edges.length-1];
+ const xmin=edges[0],logSpan=Math.log10(xmax/xmin);
+ const x=e=>L+Math.log10(e/xmin)/logSpan*(R-L);
+ cx.font='18px '+getComputedStyle(document.body).fontFamily;cx.fillStyle='#455065';cx.fillText('Signal / bin [%]',L,22);
+ for(let j=0;j<=4;j++){const y=B-j/4*(B-T);cx.strokeStyle='#d9dee6';cx.beginPath();cx.moveTo(L,y);cx.lineTo(R,y);cx.stroke();cx.textAlign='right';cx.fillText(fmt(max*j/4,3),L-9,y+5);}
+ for(let exponent=Math.ceil(Math.log10(xmin));exponent<=Math.floor(Math.log10(xmax));exponent++){const energy=10**exponent,xx=x(energy);cx.strokeStyle='#d9dee6';cx.beginPath();cx.moveTo(xx,T);cx.lineTo(xx,B);cx.stroke();cx.textAlign='center';cx.fillStyle='#455065';cx.fillText(energy.toLocaleString('en-US',{maximumFractionDigits:6}),xx,B+25);}
+ // Plot the retained bin boundaries on a logarithmic axis. No synthetic rebinning.
+ cx.strokeStyle='#077d9e';cx.lineWidth=2.5;cx.beginPath();cx.moveTo(x(edges[0]),B);
+ shares.forEach((value,i)=>{const y=B-value/max*(B-T);cx.lineTo(x(edges[i]),y);cx.lineTo(x(edges[i+1]),y)});
+ cx.lineTo(x(edges[edges.length-1]),B);cx.stroke();
+ cx.fillStyle='#455065';cx.textAlign='center';cx.fillText('Kinetic energy [MeV] · log scale',(L+R)/2,385);
 }
+
 let eventBank=null,selectedSector=0,particleMode='all',streamClock=0,streamStats={},animationFramePending=false;
 async function initTransport(){
  if(!$('trackRun').options.length){
@@ -309,4 +428,19 @@ $('tracks').onkeydown=e=>{let keys={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0
 $('trackColor').onchange=drawTracks;
 function scheduleAnimation(){if(animationFramePending)return;animationFramePending=true;requestAnimationFrame(animate)}
 function animate(now){animationFramePending=false;if(playing&&tab==='transport'){if(lastFrame)streamClock+=Math.min(now-lastFrame,100)/18000*+$('speed').value;drawTracks()}lastFrame=now;if(playing)scheduleAnimation()}
-$('run').onchange=()=>changeRun().catch(fail);document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));$('download').onclick=()=>resultData&&download('dilution_covariance.json',resultData);$('plane').onchange=()=>{$('tile').value='';loadMap().catch(fail)};$('tile').onchange=()=>loadMap().catch(fail);$('foldSectors').onchange=()=>{try{drawMaps()}catch(e){fail(e)}};$('trackRun').onchange=()=>loadTracks().catch(fail);$('camera').onchange=resetCamera;$('trackFocus').onchange=resetCamera;$('resetCamera').onclick=resetCamera;$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';if(playing){lastFrame=0;scheduleAnimation()}};$('restart').onclick=()=>{streamClock=0;lastFrame=0;drawTracks()};document.addEventListener('visibilitychange',()=>{if(document.hidden){playing=false;$('play').textContent='Play'}});initialize();
+$('run').onchange=()=>changeRun().catch(fail);document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));$('plane').onchange=()=>{$('tile').value='';loadMap().catch(fail)};$('tile').onchange=()=>loadMap().catch(fail);$('foldSectors').onchange=()=>{try{drawMaps()}catch(e){fail(e)}};$('trackRun').onchange=()=>loadTracks().catch(fail);$('camera').onchange=resetCamera;$('trackFocus').onchange=resetCamera;$('resetCamera').onclick=resetCamera;$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';if(playing){lastFrame=0;scheduleAnimation()}};$('restart').onclick=()=>{streamClock=0;lastFrame=0;drawTracks()};document.addEventListener('visibilitychange',()=>{if(document.hidden){playing=false;$('play').textContent='Play'}});initialize();
+
+function eventCorrelationPanel(info,p){
+ if(!info?.available)return '';
+ const labels=p.components.map(c=>names[c]||c);
+ const matrix=values=>table(['Interaction',...labels],values.map((row,i)=>[esc(labels[i]),...row.map(v=>esc(fmt(v)))]));
+ return `<section class="informationMatrix"><h2>Effect of shared events</h2>
+ <p><strong>Multiple crossings included</strong> · ${fmt(info.histories,4)} simulated histories · Same dilution factors</p>
+ ${table(['Interaction','Independent σ [ppb]','Shared-event σ [ppb]','Change'],labels.map((label,i)=>[esc(label),esc(fmt(info.independent_component_sigma_ppb[i])),esc(fmt(info.counting_asymmetry_standard_error_ppb[i])),esc(((info.component_sigma_ratio[i]-1)*100).toFixed(1)+'%')]))}
+ <details><summary>Deconvolution matrix with event correlations</summary><p>M = fᵀ C<sub>A</sub>⁻¹ f · ppb⁻²</p>${matrix(info.matrix)}</details>
+ <details><summary>Asymmetry covariance with event correlations</summary><p>Fitted components · ppb² · fixed dilution factors</p>${matrix(info.counting_asymmetry_covariance)}</details>
+ <details><summary>Correlations between detector regions</summary>${table(['Region',...p.categories.map(esc)],info.category_asymmetry_correlation.map((row,i)=>[esc(p.categories[i]),...row.map(v=>esc(v.toFixed(3)))]))}</details>
+ <p class="muted">Crossing-based statistical estimate · ${info.beam_days} beam days · ${100*info.polarization}% polarization. Excludes light-response and electronics noise. Simulation uncertainty on this comparison is not yet propagated.</p></section>`;
+}
+
+$('secondaryPlane').onchange=()=>{secondaryState.plane=$('secondaryPlane').value;loadSecondaries().catch(fail)};

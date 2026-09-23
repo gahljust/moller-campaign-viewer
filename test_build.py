@@ -45,6 +45,7 @@ class SharedBuildTests(unittest.TestCase):
         result = build(self.source, self.output)
         self.assertNotIn('optics?run=a', result['products'])
         self.assertNotIn('results?run=old', result['products'])
+        self.assertNotIn('results?run=a', result['products'])
         self.assertNotIn('transport?name=old', result['products'])
         totals = result['animation_sample']
         self.assertEqual(totals['histories_scanned'], 100)
@@ -59,7 +60,7 @@ class SharedBuildTests(unittest.TestCase):
     def test_corrupted_source_does_not_replace_last_valid_site(self):
         build(self.source, self.output)
         before = (self.output / 'manifest.json').read_bytes()
-        item = self.manifest['products']['results?run=a']
+        item = self.manifest['products']['maps?plane=circle&run=a&tile=']
         item['sha256'] = '0' * 64
         (self.source / 'manifest.json').write_text(json.dumps(self.manifest))
         with self.assertRaisesRegex(ValueError, 'hash mismatch'):
@@ -73,9 +74,10 @@ class SharedBuildTests(unittest.TestCase):
             build(self.source, self.output)
         self.assertFalse(self.output.exists())
 
-    def test_showermax_supplement_is_bound_to_export_and_keeps_main_matrix(self):
+    def test_optional_legacy_supplement_is_verified_but_results_are_not_exported(self):
         main = {'dilution_covariance': [[1.0]]}
-        self.put('results?run=a', {'dilution': main})
+        information = {'matrix': [[3.]], 'counting_asymmetry_covariance': [[1/3]], 'beam_days': 344}
+        self.put('results?run=a', {'dilution': main, 'deconvolution_information': information})
         extra = {'components': ['moller'], 'rows': [{'region': 'open', 'components': {'moller': {'dilution': 1., 'dilution_standard_error': 0.}}}]}
         path = self.root/'showermax.json'
         value = {'schema': 'showermax_regional_dilution_v1', 'cohort': 'current:field',
@@ -83,9 +85,7 @@ class SharedBuildTests(unittest.TestCase):
                  'selections': {'a': extra}}
         path.write_text(json.dumps(value))
         result = build(self.source, self.output, path)
-        payload = json.loads(gzip.decompress((self.output/result['products']['results?run=a']['path']).read_bytes()))
-        self.assertEqual(payload['dilution'], main)
-        self.assertEqual(payload['showermax_dilution'], extra)
+        self.assertNotIn('results?run=a', result['products'])
         value['source_manifest_sha256'] = 'stale'
         path.write_text(json.dumps(value))
         with self.assertRaisesRegex(ValueError, 'do not match'):
