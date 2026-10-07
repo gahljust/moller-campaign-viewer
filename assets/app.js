@@ -23,7 +23,7 @@ let catalog,run,tab=location.hash==='#deconvolution'?'results':'maps',revision=0
 const cache=new Map();
 let staticManifest;
 async function api(route,args={}){
- staticManifest=staticManifest||await (await fetch('manifest.json')).json();
+ staticManifest=staticManifest||await (await fetch('manifest.json?v=deconvolution-1',{cache:'no-cache'})).json();
  let key=route+'?'+new URLSearchParams(Object.entries(args).sort(([a],[b])=>a.localeCompare(b))),item=staticManifest.products[key];
  if(!item)throw Error('This saved product is unavailable.');
  let response=await fetch(item.path);if(!response.ok)throw Error('Unable to load saved product.');
@@ -63,6 +63,7 @@ function interactionPanel(d,unit='PE/s',current=null){
 }
 async function showTab(name){if(!['results','maps','secondaries','transport'].includes(name))return;tab=name;if(name!=='results')$('deconvolutionVideo').pause();document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
 async function showResults(){
+ $('notice').innerHTML='';
  $('resultBody').innerHTML='<p>Loading…</p>';
  await LocalTiles.show({},revision);
 }
