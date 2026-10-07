@@ -14,7 +14,7 @@ PRODUCT_LIMIT = 2 * 1024 * 1024
 ROUTES = {'catalog', 'maps', 'secondary-sources', 'transport-catalog', 'transport', 'geometry'}
 
 
-def build(source, output, showermax=None):
+def build(source, output, showermax=None, deconvolution=False):
     source, output = Path(source).resolve(), Path(output).resolve()
     if source == output or source in output.parents or output in source.parents:
         raise ValueError('Source export and shared output must be separate directories.')
@@ -93,6 +93,25 @@ def build(source, output, showermax=None):
         shutil.copytree(HERE / 'assets', staging / 'assets')
         shutil.move(staging / 'assets' / 'index.html', staging / 'index.html')
         (staging / '.nojekyll').touch()
+        if deconvolution:
+            import sys
+            sys.path.insert(0, str(HERE.parents[1]))
+            from tools.workspace_paths import DATA_ROOT
+            from background_campaign.deconvolution.tile_product import product
+            from background_campaign.showermax_live import research
+            name = research.catalog()['default']
+            tiles = product(name)
+            if not tiles.get('available'):
+                raise ValueError(tiles.get('reason', 'Tile product unavailable'))
+            regional = research.results(name)
+            put('deconvolution?', {'available': True, 'tiles': tiles, 'regional': regional})
+            video = DATA_ROOT / 'presentations/deconvolution_animation/hyperframes/scene01.mp4'
+            shutil.copyfile(video, staging / 'assets/deconvolution.mp4')
+            result['deconvolution_video_sha256'] = hashlib.sha256(video.read_bytes()).hexdigest()
+        else:
+            index = staging / 'index.html'
+            index.write_text(index.read_text().replace('<button data-tab="results">Deconvolution</button>', ''))
+
         put('catalog?', catalog)
         for key in manifest['products']:
             route, _, query = key.partition('?')
@@ -158,7 +177,8 @@ if __name__ == '__main__':
     parser.add_argument('--source', type=Path, help='Prepared research browser export')
     parser.add_argument('--output', type=Path, help='Separate generated shared site directory')
     parser.add_argument('--showermax', type=Path, help='Prepared ShowerMax regional dilution summary')
+    parser.add_argument('--deconvolution', action='store_true', help='Include verified tile matrices and video')
     args = parser.parse_args()
     source, output = (args.source, args.output) if args.source and args.output else defaults()
     source = args.source or source
-    build(source, args.output or output, args.showermax)
+    build(source, args.output or output, args.showermax, args.deconvolution)

@@ -5,7 +5,7 @@
   "labels": {
     "allInteractions": "All interactions",
     "allOpticsFoils": "All optics foils",
-    "resultsTab": "Results & uncertainties",
+    "resultsTab": "Deconvolution",
     "mapsTab": "Hit maps",
     "transportTab": "Particle transport",
     "secondariesTab": "Secondaries"

@@ -49,6 +49,11 @@ def verify_site(site):
             raise ValueError('Conflicting product records.')
         products[name] = item
     expected.update(products)
+    if manifest.get('deconvolution_video_sha256'):
+        expected.add('assets/deconvolution.mp4')
+        video = site / 'assets/deconvolution.mp4'
+        if video.stat().st_size > 32 * 1024 * 1024 or digest(video) != manifest['deconvolution_video_sha256']:
+            raise ValueError('Deconvolution video hash or size mismatch.')
     actual = {p.relative_to(site).as_posix() for p in site.rglob('*') if p.is_file()}
     if actual - {'deployment.json'} != expected or any(p.is_symlink() for p in site.rglob('*')):
         raise ValueError('Missing or unexpected public files.')
@@ -108,7 +113,7 @@ def unpack(archive_path, output, checksum, commit):
                 raise ValueError('Unsafe or duplicate archive member.')
             names.add(member.name)
             total += member.size
-        if total > BUDGET + 4 * 1024 * 1024:
+        if total > BUDGET + 36 * 1024 * 1024:
             raise ValueError('Deployment archive exceeds site budget.')
         output.mkdir(parents=True)
         for member in members:

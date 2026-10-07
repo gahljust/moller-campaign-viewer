@@ -19,7 +19,7 @@ async function loadPresentation(){
  }catch(e){presentationError='Presentation settings could not be read; keeping the current display settings.'}
 }
 const label=r=>`${targetLabel(r.target)} · ${+r.energy_mev/1000} GeV · ${names[r.channel]||r.channel} · ${r.target==='lh2'?'LH2':`sieve ${r.sieve}`} · ${r.cohort==='unverified-history'?'historical, unverified':r.source_commit?.slice(0,8)||r.cohort.slice(0,8)}`;
-let catalog,run,tab='maps',revision=0,resultData,mapData,bank,trackData,geo,playing=false,lastFrame=0,framePending=false,mapRevision=0;
+let catalog,run,tab=location.hash==='#deconvolution'?'results':'maps',revision=0,resultData,mapData,bank,trackData,geo,playing=false,lastFrame=0,framePending=false,mapRevision=0;
 const cache=new Map();
 let staticManifest;
 async function api(route,args={}){
@@ -61,24 +61,10 @@ function interactionPanel(d,unit='PE/s',current=null){
  let sigma=(v,e)=>fmt(v)+(e==null?' · uncertainty unavailable':' ± '+fmt(e,3));
  return `<div class="combinedPanel"><h2>Interaction contributions</h2><div class="cards">${card('Recorded signal',sigma(a.estimate,a.standard_error)+' '+unit,current==null?'Independent source runs':current+' µA beam current')}${card('Interactions',a.components.length,'Fractions of the recorded signal')}</div><div class="contributionStack" role="img" aria-label="Interaction fractions">${a.components.map((r,i)=>`<span style="width:${100*(r.fraction||0)}%;background:${colors[i%colors.length]}" title="${esc(names[r.channel]||r.channel)}: ${esc(percentError(r.fraction,r.fraction_standard_error))}"></span>`).join('')}</div>${table(['Interaction',`Signal [${unit}]`,'Signal fraction ± MC error'],a.components.map((r,i)=>[`<span class="processKey" style="background:${colors[i%colors.length]}"></span>${esc(names[r.channel]||r.channel)}`,esc(sigma(r.estimate,r.standard_error)),`<strong>${esc(percentError(r.fraction,r.fraction_standard_error))}</strong>`]))}</div>`;
 }
-async function showTab(name){if(!['maps','secondaries','transport'].includes(name))return;tab=name;document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
+async function showTab(name){if(!['results','maps','secondaries','transport'].includes(name))return;tab=name;if(name!=='results')$('deconvolutionVideo').pause();document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
 async function showResults(){
- let token=revision,selection=catalog.runs.find(r=>r.name===run);
- $('resultBody').innerHTML='<p>Loading saved values…</p>';
- let d=await api('results',{run});
- if(token!==revision||tab!=='results')return;
- let p=d.dilution,shower=d.showermax_dilution;
- let components=p?.components||shower?.components||[];
- let {overview,...mainResults}=d;
- resultData=mainResults;
- $('resultScope').textContent=`${targetLabel(d.scope.target)} · ${+d.scope.energy_mev/1000} GeV · ± 1σ MC`;
- let mainRows=p?p.rows.map(row=>[esc(row.category.replaceAll('_',' ')),...components.map(c=>{let v=row.components[c];return `<strong>${esc(percentError(v.dilution,v.dilution_standard_error))}</strong>`})]):[];
- let main=table(['Category',...components.map(c=>names[c]||c)],mainRows);
- let cell=v=>`<strong>${esc(percentError(v?.dilution,v?.dilution_standard_error))}</strong>`;
- let extra=`<tbody class="showerSignal"><tr class="tableBreak"><td colspan="${components.length+1}"></td></tr><tr class="signalSection"><th colspan="${components.length+1}">ShowerMax · PE-weighted dilution${shower?.missing?.length?' · included interactions':''}</th></tr>${['open','closed','transition'].map(region=>{let row=shower?.rows.find(r=>r.region===region);return `<tr><td>ShowerMax ${region}</td>${components.map(c=>`<td>${cell(row?.components[c])}</td>`).join('')}</tr>`}).join('')}</tbody>`;
- main=p?.includes_showermax?dilutionTable(p):main.replace('</table>',extra+'</table>');
- $('resultBody').innerHTML=(p?'':'<p>Main detector dilution unavailable for this selection.</p>')+main+(p?informationPanel(d.deconvolution_information,p)+eventCorrelationPanel(d.event_correlated_information,p)+'<details><summary>Dilution MC correlations</summary><div class="matrixWrap"><canvas id="covMap" width="450" height="450"></canvas><div id="covTip"><p>Correlation of simulated dilution errors · blue −1 · white 0 · orange +1</p></div></div></details>':'');
- if(p){let max=Math.max(...p.rows.flatMap(row=>Object.values(row.components).map(v=>v.dilution_standard_error)));$('identity').textContent='Dilution MC ±'+fmt(max*100,3)+'% max';drawCov(p)}
+ $('resultBody').innerHTML='<p>Loading…</p>';
+ await LocalTiles.show({},revision);
 }
 function dilutionTable(p){
  const components=p.components;
