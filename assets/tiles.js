@@ -63,7 +63,8 @@ const LocalTiles=(()=>{
   const navigation=document.createElement('div');navigation.className='matrixNavigation';
   const explore=document.createElement('button');explore.className='exploreCorrelations';explore.textContent='Explore detector correlations +';explore.setAttribute('aria-expanded','false');explore.setAttribute('aria-controls','detectorExplorer');
   const explorer=document.createElement('section');explorer.id='detectorExplorer';explorer.className='detectorExplorer';explorer.hidden=true;explorer.setAttribute('aria-label','Detector correlations');
-  navigation.append(explore);$('resultBody').prepend(navigation,explorer,tablist);
+  const exploreHint=document.createElement('span');exploreHint.className='exploreHint';exploreHint.textContent='← Click to see a visualization of tile correlation';
+  navigation.append(explore,exploreHint);$('resultBody').prepend(navigation,explorer,tablist);
   window.DetectorCorrelationData={rows:data.rows,C:f.category_asymmetry_covariance_ppb2,histories:data.histories};
   let detectorFrame=null;
   explore.onclick=()=>{const open=explorer.hidden;explorer.hidden=!open;explore.setAttribute('aria-expanded',String(open));explore.textContent=open?'Hide detector correlations −':'Explore detector correlations +';if(open&&!detectorFrame){detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.src='assets/detector-correlations.html';explorer.append(detectorFrame)}};

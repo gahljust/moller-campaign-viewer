@@ -128,9 +128,11 @@ header{gap:18px;flex-wrap:wrap}header a{margin-left:auto}#stopViewer{font-size:1
 @media(max-width:800px){.matrixTabs{gap:20px}}
 
 /* Inline explorer expands above the matrix tabs. */
-.matrixNavigation{display:flex;justify-content:flex-start;margin:30px 0 12px}
+.matrixNavigation{display:flex;justify-content:flex-start;align-items:center;gap:16px;flex-wrap:wrap;margin:30px 0 12px}
 .exploreCorrelations{background:#087f98;color:#fff;border:2px solid #087f98;border-left:6px solid #ff802a;border-radius:8px;padding:14px 22px;font-size:16px;font-weight:750;box-shadow:0 4px 12px #087f9830;cursor:pointer}
 .exploreCorrelations:hover{background:#066a80;box-shadow:0 5px 16px #087f9845}.exploreCorrelations:focus-visible{outline:3px solid #ff802a;outline-offset:3px}
 .detectorExplorer{margin:0 0 24px;border:1px solid #34495f;border-radius:10px;overflow:hidden;background:#0c1420}.detectorExplorer[hidden]{display:none}
 .detectorCorrelationsFrame{display:block;width:100%;height:850px;border:0;margin:0;background:#0c1420}
 @media(max-width:600px){.detectorCorrelationsFrame{height:1100px}.exploreCorrelations{font-size:14px;padding:12px 16px}}
+
+.exploreHint{font-size:15px;color:var(--slate)}
