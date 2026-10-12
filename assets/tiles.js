@@ -1,5 +1,6 @@
 /* Local results: video, deconvolution, then the input matrices. */
 const LocalTiles=(()=>{
+ let activeMatrix='deconvolution';
  let data=null,regional=null,uncertaintyUnit='percent',matrixSystems={covariance:'all',correlation:'all'},hSystem='all',dilutionSystem='all',dilutionLayout='tiles';
  const systems=['ring1','ring2','ring3','ring4','ring5','ring6','showermax'];
  const systemName=s=>s==='all'?'All detectors':s==='showermax'?'ShowerMax':`Ring ${s.slice(4)}`;
@@ -10,7 +11,6 @@ const LocalTiles=(()=>{
  const matrix=(m)=>table(['Interaction',...labels()],m.map((row,i)=>[esc(labels()[i]),...row.map(v=>esc(fmt(v)))]));
  const combinedCovariance=f=>f.covariance_ppb2.map((row,i)=>row.map((v,j)=>v+f.template_mc_covariance_ppb2[i][j]));
  async function show(saved,token){
-
   const response=await api('deconvolution');if(token!==revision)return true;
   if(!response.available){
    $('resultTitle').textContent='Deconvolution';
@@ -20,26 +20,35 @@ const LocalTiles=(()=>{
   }
   data=response.tiles;regional=response.regional;
   const f=data.forecast,combined=combinedCovariance(f);
+  const sampleLabel=`${Number(data.histories/1e6).toLocaleString('en-US',{maximumFractionDigits:2})} million simulated events total · Møller, ep-elastic & ep-inelastic`;
   resultData={...saved,individual_tiles:data,combined_forecast:{covariance_ppb2:combined,standard_error_ppb:combined.map((r,i)=>Math.sqrt(r[i])),method:'Projected experimental statistics plus independent template MC covariance; first-order propagation at the simulated reference, fixed forecast weights.'}};
   $('resultTitle').textContent='Deconvolution';
   $('resultScope').textContent=`LH2 · 11 GeV · 224 quartz tiles + 28 ShowerMax modules`;
-  $('resultBody').innerHTML=`<section class="resultSection deconvolutionLead"><h2>Deconvolution matrix M</h2>
+  $('resultBody').innerHTML=`<section class="resultSection deconvolutionLead"><h2>Deconvolution matrix M</h2><p class="resultMeta">${esc(sampleLabel)}</p>
    <div class="deconvolutionEquation"><span>M = Hᵀ C⁻¹ H</span><span>5 interactions × 5 interactions · ppb⁻²</span></div>
-   <p class="resultMeta">H is the asymmetry-adjusted dilution matrix below. C includes same-event correlations across all 252 detector channels.</p>
+   <p class="resultMeta">H is the asymmetry-adjusted dilution matrix. C includes same-event correlations across all 252 detector channels.</p>
    ${matrix(f.matrix)}
   </section><section class="uncertaintyLead">
    <div class="heading"><h2>Asymmetry uncertainties</h2><label>Units<select id="uncertaintyUnit"><option value="percent">Relative [%]</option><option value="ppb">Absolute [ppb]</option></select></label></div>
+   <p class="resultMeta">${esc(sampleLabel)}</p>
    <p class="resultMeta">Assumed exposure · ${f.beam_days} beam days · ${100*f.polarization}% polarization · ${f.current_uA} µA</p>
    <p class="resultMeta">Projected statistical covariance = M⁻¹ · σ = √(diagonal of M⁻¹)</p>
-   <div id="uncertaintyTable"></div>
+   <div id="uncertaintyTable"></div><div id="mcExplanation" class="resultMeta"></div>
    <details><summary>Extracted-asymmetry covariance · ppb²</summary><label>Contribution<select id="fitCovariance"><option value="combined">Combined</option><option value="counting">Projected experimental statistics</option><option value="mc">Simulation MC</option></select></label><div id="fitCovarianceTable"></div></details>
    <div class="uncertaintyKey"><span><b>Projected experimental σ:</b> predicted from simulated rates and event correlations for the assumed exposure</span><span><b>MC:</b> finite simulation statistics in H</span><span><b>Combined:</b> both, added in quadrature</span></div>
+   <p class="resultCaution">First-order MC propagation; fixed forecast weights. Inelastic separation remains sensitive to MC precision. Physical-model systematics are excluded.</p>
+   <details><summary>Reference asymmetries & assumptions</summary>
+    <p>Relative uncertainties use the simulated Ring 5 open average for each interaction.</p>
+    ${table(['Interaction','Reference asymmetry [ppb]','MC σ [ppb]'],labels().map((label,i)=>[esc(label),esc(fmt(f.reference_asymmetry_ppb[i].value)),esc(fmt(f.reference_asymmetry_ppb[i].standard_error))]))}
+    <p>Simulation forecast, not measured uncertainty. Model and detector systematics excluded.</p>
+   </details>
   </section>
 
   <section class="resultSection"><div class="heading"><h2>Dilution-factor matrices</h2><div class="matrixControls"><label>Grouping<select id="dilutionLayout"><option value="regions">Ring & region</option><option value="tiles">Individual tiles</option></select></label><label>Detector<select id="dilutionSystem">${options(true)}</select></label></div></div>
    <p class="resultMeta">Main quartz: fractions of crossing rate. ShowerMax: fractions of PE-weighted response. Values ± 1σ MC.</p><div id="dilutionMatrix" class="matrixTable"></div>
   </section>
   <section class="resultSection"><div class="heading"><h2>Asymmetry-adjusted dilution matrix H</h2><label>Detector<select id="hSystem">${options(true)}</select></label></div>
+   <p class="resultMeta">${esc(sampleLabel)}</p>
    <p class="matrixFormula">H<sub>ri</sub> = f<sub>ri</sub> × A<sub>ri</sub> / A<sub>i,ref</sub></p>
    <p class="resultMeta">Tile dilution × simulated asymmetry relative to Ring 5 open. Rows are tiles; columns are interactions.</p><div id="hTable" class="matrixTable"></div>
   </section>
@@ -47,6 +56,24 @@ const LocalTiles=(()=>{
    <p class="resultMeta">${scale==='covariance'?'Cᵢⱼ = 10¹⁸ Bᵢⱼ / (Polarization² × Time × Rᵢ × Rⱼ) · ppb² · projected experimental statistics':'ρᵢⱼ = Cᵢⱼ / √(Cᵢᵢ Cⱼⱼ) · dimensionless · normalized from the same covariance'}</p>
    <div class="covarianceExplorer"><div><canvas id="${scale}Map" width="660" height="630" tabindex="0" role="img" aria-label="Tile ${scale} matrix; use arrow keys to inspect cells"></canvas><p class="matrixLegend" id="${scale}Legend"></p></div><div class="matrixReadout"><h3>Inspect a tile pair</h3><p class="resultMeta">Point, tap, or use arrow keys. Display filters leave the full fit unchanged.</p><div id="${scale}Readout" aria-live="polite"></div></div></div>
   </section>`).join('')}`;
+  const panels=[...$('resultBody').children];
+  const tabs=[['deconvolution','Deconvolution'],['asymmetry','Asymmetry uncertainties'],['dilution','Dilution F'],['adjusted','Adjusted dilution H'],['covariance','Covariance C'],['correlation','Correlation']];
+  const tablist=document.createElement('div');tablist.className='matrixTabs';tablist.setAttribute('role','tablist');tablist.setAttribute('aria-label','Deconvolution matrices');
+  tablist.innerHTML=tabs.map(([id,label])=>`<button id="matrixTab-${id}" role="tab" aria-controls="matrixPanel-${id}" data-matrix="${id}">${label}</button>`).join('');
+  const navigation=document.createElement('div');navigation.className='matrixNavigation';
+  const explore=document.createElement('button');explore.className='exploreCorrelations';explore.textContent='Explore detector correlations +';explore.setAttribute('aria-expanded','false');explore.setAttribute('aria-controls','detectorExplorer');
+  const explorer=document.createElement('section');explorer.id='detectorExplorer';explorer.className='detectorExplorer';explorer.hidden=true;explorer.setAttribute('aria-label','Detector correlations');
+  navigation.append(explore);$('resultBody').prepend(navigation,explorer,tablist);
+  window.DetectorCorrelationData={rows:data.rows,C:f.category_asymmetry_covariance_ppb2,histories:data.histories};
+  let detectorFrame=null;
+  explore.onclick=()=>{const open=explorer.hidden;explorer.hidden=!open;explore.setAttribute('aria-expanded',String(open));explore.textContent=open?'Hide detector correlations −':'Explore detector correlations +';if(open&&!detectorFrame){detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.src='assets/detector-correlations.html';explorer.append(detectorFrame)}};
+  const buttons=[...tablist.children];
+  function selectMatrix(id,focus=false){
+   activeMatrix=id;
+   tabs.forEach(([key],i)=>{const selected=key===id;panels[i].hidden=!selected;buttons[i].setAttribute('aria-selected',String(selected));buttons[i].tabIndex=selected?0:-1;if(selected&&focus)buttons[i].focus()});
+  }
+  tabs.forEach(([id],i)=>{const panel=panels[i];panel.id=`matrixPanel-${id}`;panel.classList.add('matrixPanel');panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',`matrixTab-${id}`);buttons[i].onclick=()=>selectMatrix(id);buttons[i].onkeydown=e=>{let j;if(e.key==='ArrowRight')j=(i+1)%tabs.length;else if(e.key==='ArrowLeft')j=(i+tabs.length-1)%tabs.length;else if(e.key==='Home')j=0;else if(e.key==='End')j=tabs.length-1;else return;e.preventDefault();selectMatrix(tabs[j][0],true)}});
+  selectMatrix(activeMatrix);
   for(const [id,current,update] of [
    ['uncertaintyUnit',uncertaintyUnit,v=>{uncertaintyUnit=v;drawUncertainties()}],
    ...['covariance','correlation'].map(scale=>[`${scale}System`,matrixSystems[scale],v=>{matrixSystems[scale]=v;drawCovariance(scale)}]),
@@ -66,6 +93,9 @@ const LocalTiles=(()=>{
    const a=f.covariance_ppb2[i][i],b=f.template_mc_covariance_ppb2[i][i];
    return [esc(label),... [a,b,a+b].map((v,j)=>{const text=relative?(Math.sqrt(v)*scale).toFixed(2):fmt(Math.sqrt(v),4);return j===2?`<strong>${text}</strong>`:text})];
   }));
+  const scale=relative?100/Math.abs(f.reference_asymmetry_ppb[0].value):1;
+  const example=[f.covariance_ppb2[0][0],f.template_mc_covariance_ppb2[0][0],f.covariance_ppb2[0][0]+f.template_mc_covariance_ppb2[0][0]].map(v=>relative?(Math.sqrt(v)*scale).toFixed(2):fmt(Math.sqrt(v)*scale,4));
+  $('mcExplanation').innerHTML=`<p><b>MC:</b> finite-simulation uncertainty in dilutions and calculated asymmetries, propagated through H.</p><p>σ<sub>total</sub> = √(σ<sub>experimental</sub>² + σ<sub>MC</sub>²)</p><p><b>Møller:</b> √((${example[0]} ${unit})² + (${example[1]} ${unit})²) ≈ <b>${example[2]} ${unit}</b></p>`;
  }
  function drawH(){
   const rows=data.rows.filter(r=>hSystem==='all'||r.system===hSystem);

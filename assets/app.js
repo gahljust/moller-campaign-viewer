@@ -439,3 +439,17 @@ function eventCorrelationPanel(info,p){
 }
 
 $('secondaryPlane').onchange=()=>{secondaryState.plane=$('secondaryPlane').value;loadSecondaries().catch(fail)};
+
+// Keep visible prose free of word-joining hyphens; retain numeric signs and URLs.
+(()=>{
+ const wording=s=>s.replace(/https?:\/\/[^\s]+|(?<=\p{L})[-\u2010\u2011](?=\p{L})/gu,m=>m.length===1?' ':m);
+ const skip=n=>n.parentElement?.closest('script,style,code,pre,textarea');
+ function clean(node){
+  if(node.nodeType===Node.TEXT_NODE){if(!skip(node)){const t=wording(node.data);if(t!==node.data)node.data=t}return}
+  if(node.nodeType!==Node.ELEMENT_NODE||node.matches('script,style,code,pre,textarea'))return;
+  for(const a of ['title','aria-label','placeholder'])if(node.hasAttribute(a)){const old=node.getAttribute(a),t=wording(old);if(t!==old)node.setAttribute(a,t)}
+  for(const child of node.childNodes)clean(child);
+ }
+ clean(document.body);document.title=wording(document.title);
+ new MutationObserver(changes=>{for(const c of changes){if(c.type==='childList')c.addedNodes.forEach(clean);else clean(c.target)}}).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['title','aria-label','placeholder']});
+})();
