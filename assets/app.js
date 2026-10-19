@@ -20,10 +20,26 @@ async function loadPresentation(){
 }
 const label=r=>`${targetLabel(r.target)} · ${+r.energy_mev/1000} GeV · ${names[r.channel]||r.channel} · ${r.target==='lh2'?'LH2':`sieve ${r.sieve}`} · ${r.cohort==='unverified-history'?'historical, unverified':r.source_commit?.slice(0,8)||r.cohort.slice(0,8)}`;
 let catalog,run,tab=location.hash==='#deconvolution'?'results':'maps',revision=0,resultData,mapData,bank,trackData,geo,playing=false,lastFrame=0,framePending=false,mapRevision=0;
+let detectorResponse='2';
+function syncResponseControls(){
+ const supported=!!staticManifest?.main_detector_response&&(tab==='results'||staticManifest.main_detector_response.runs.includes(run));
+ if(!supported)detectorResponse='0';
+ for(const id of ['mainResponse','mapsResponse','secondaryResponse'])if($(id)){
+  $(id).value=detectorResponse;
+  const pe=$(id).querySelector('option[value="2"]');if(pe)pe.disabled=!supported;
+  if(id!=='mainResponse')$(id).parentElement.hidden=!staticManifest?.main_detector_response;
+ }
+}
+async function changeResponse(value){
+ detectorResponse=value;revision++;mapRevision++;secondaryRevision++;cache.clear();sourceMapCache.clear();
+ $('notice').innerHTML='';mapData=null;await showTab(tab);
+}
 const cache=new Map();
 let staticManifest;
 async function api(route,args={}){
- staticManifest=staticManifest||await (await fetch('manifest.json?v=deconvolution-1',{cache:'no-cache'})).json();
+ staticManifest=staticManifest||await (await fetch('manifest.json?v=main-pe-20261019',{cache:'no-cache'})).json();
+ args={...args};
+ if(!staticManifest.main_detector_response||(['maps','secondary-sources'].includes(route)&&(args.response==='0'||['circle','full_plane'].includes(args.plane)||args.tile)))delete args.response;
  let key=route+'?'+new URLSearchParams(Object.entries(args).sort(([a],[b])=>a.localeCompare(b))),item=staticManifest.products[key];
  if(!item)throw Error('This saved product is unavailable.');
  let response=await fetch(item.path);if(!response.ok)throw Error('Unable to load saved product.');
@@ -61,7 +77,7 @@ function interactionPanel(d,unit='PE/s',current=null){
  let sigma=(v,e)=>fmt(v)+(e==null?' · uncertainty unavailable':' ± '+fmt(e,3));
  return `<div class="combinedPanel"><h2>Interaction contributions</h2><div class="cards">${card('Recorded signal',sigma(a.estimate,a.standard_error)+' '+unit,current==null?'Independent source runs':current+' µA beam current')}${card('Interactions',a.components.length,'Fractions of the recorded signal')}</div><div class="contributionStack" role="img" aria-label="Interaction fractions">${a.components.map((r,i)=>`<span style="width:${100*(r.fraction||0)}%;background:${colors[i%colors.length]}" title="${esc(names[r.channel]||r.channel)}: ${esc(percentError(r.fraction,r.fraction_standard_error))}"></span>`).join('')}</div>${table(['Interaction',`Signal [${unit}]`,'Signal fraction ± MC error'],a.components.map((r,i)=>[`<span class="processKey" style="background:${colors[i%colors.length]}"></span>${esc(names[r.channel]||r.channel)}`,esc(sigma(r.estimate,r.standard_error)),`<strong>${esc(percentError(r.fraction,r.fraction_standard_error))}</strong>`]))}</div>`;
 }
-async function showTab(name){if(!['results','maps','secondaries','transport'].includes(name))return;tab=name;if(name!=='results')$('deconvolutionVideo').pause();document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
+async function showTab(name){if(!['results','maps','secondaries','transport'].includes(name))return;mapRevision++;secondaryRevision++;tab=name;syncResponseControls();if(name!=='results')$('deconvolutionVideo').pause();document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
 async function showResults(){
  $('notice').innerHTML='';
  $('resultBody').innerHTML='<p>Loading…</p>';
@@ -90,10 +106,10 @@ function informationPanel(info,p){
 function drawCov(p,id='covMap',tip='covTip'){let cv=$(id),cx=cv.getContext('2d'),n=p.dilution_covariance.length,w=cv.width/n;for(let i=0;i<n;i++)for(let j=0;j<n;j++){let v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]),r=den?v/den:0,a=Math.min(1,Math.abs(r)),color=r<0?[7,125,158]:[244,120,31];cx.fillStyle=`rgb(${color.map(c=>Math.round(255+(c-255)*a)).join(',')})`;cx.fillRect(j*w,i*w,w+.3,w+.3)}cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),j=Math.min(n-1,Math.floor((e.clientX-b.left)/b.width*n)),i=Math.min(n-1,Math.floor((e.clientY-b.top)/b.height*n)),v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]);$(tip).innerHTML=`<p>${esc(p.coordinate_order[i].category)} · ${esc(names[p.coordinate_order[i].component])}<br>with ${esc(p.coordinate_order[j].category)} · ${esc(names[p.coordinate_order[j].component])}</p><p>Correlation: <strong>${den?fmt(v/den):'Undefined (zero variance)'}</strong><br>Covariance: ${fmt(v)} (fraction²)</p>`}}
 function planeLabel(p){return p==='main_detector'?'Main detector · all quartz tiles':p==='circle'?'ShowerMax PE response':p==='full_plane'?'ShowerMax virtual plane 30':/^ring[1-6]$/.test(p)?'Ring '+p[4]+' · quartz tiles':p.replaceAll('_',' ')}
 function detectorPlanes(planes){return [...planes.filter(p=>p==='main_detector'),...planes.filter(p=>p!=='main_detector'&&p!=='full_plane')]}
-async function fetchMap(name,plane,tile=''){let key=[name,plane,tile].join('|');if(cache.has(key))return cache.get(key);let d=await api('maps',{run:name,plane,tile});cache.set(key,d);while(cache.size>5)cache.delete(cache.keys().next().value);return d}
+async function fetchMap(name,plane,tile=''){let response=detectorResponse,key=[name,plane,tile,response].join('|');if(cache.has(key))return cache.get(key);let d=await api('maps',{run:name,plane,tile,response});cache.set(key,d);while(cache.size>5)cache.delete(cache.keys().next().value);return d}
 async function loadMap(){
  let token=++mapRevision,plane=$('plane').value||'main_detector',tile=plane==='circle'?$('tile').value||'':'';
- $('identity').textContent='';$('mapScope').textContent='Loading saved map…';$('regionTable').innerHTML='';
+ $('identity').textContent='';$('mapScope').textContent='Loading saved map…';$('regionTable').innerHTML='';$('rawMap').getContext('2d').clearRect(0,0,$('rawMap').width,$('rawMap').height);
  let d=await fetchMap(run,plane,tile);if(token!==mapRevision)return;mapData=d;
  const planes=detectorPlanes(d.planes);
  $('plane').innerHTML=planes.map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');$('plane').value=planes.includes(plane)?plane:planes[0];
@@ -175,21 +191,21 @@ function quartzBreakdown(q){
   fraction_standard_error:other.fraction===0&&other.fraction_standard_error===0?electron.fraction_standard_error:electron.fraction===0&&electron.fraction_standard_error===0?other.fraction_standard_error:null}:null;
  const rows=[['Forward primaries',byKey.forward_primary],['Forward secondaries',byKey.forward_secondary],['Backward particles',backward],['Unresolved',byKey.uncertain_direction]];
  const value=r=>r?.fraction==null?'Unavailable':`<strong>${fmt(100*r.fraction,3)}%${r.fraction_standard_error==null?'':' ± '+fmt(100*r.fraction_standard_error,2)+'%'}</strong>${r.fraction_standard_error==null?'<small>MC error unavailable</small>':''}`;
- return '<h2>Direction at tiles</h2><p class="statusline">All main-quartz crossings · ±1σ MC</p>'+table(['Population','Rate share','Sample entries'],rows.map(([label,row])=>[label,value(row),row?row.entries.toLocaleString():'Unavailable']));
+ return '<h2>Direction at tiles</h2><p class="statusline">'+(q.selection==='main_pe_response'?'Rate × PE response':'Rate weighting')+' · ±1σ MC</p>'+table(['Population','Signal share','Sample entries'],rows.map(([label,row])=>[label,value(row),row?row.entries.toLocaleString():'Unavailable']));
 }
 
 let secondaryRevision=0,secondaryState={plane:'main_detector',momentum:'all',normalization:'total',region:'all',source:null};
 const sourceMapCache=new Map();
-async function loadSourceMap(name,plane){
- const key=name+'|'+plane;
+async function loadSourceMap(name,plane,response=detectorResponse){
+ const key=name+'|'+plane+'|'+response;
  if(!sourceMapCache.has(key)){
-  const request=api('secondary-sources',{run:name,plane}).then(M.decodeSourceMap).then(async value=>value.source_runs?M.mergeSourceMaps(await Promise.all(value.source_runs.map(n=>loadSourceMap(n,plane)))):value.source_planes?M.mergeSourceMaps(await Promise.all(value.source_planes.map(p=>loadSourceMap(name,p)))):value);
+  const request=api('secondary-sources',{run:name,plane,response}).then(M.decodeSourceMap).then(async value=>value.source_runs?M.mergeSourceMaps(await Promise.all(value.source_runs.map(n=>loadSourceMap(n,plane,response)))):value.source_planes?M.mergeSourceMaps(await Promise.all(value.source_planes.map(p=>loadSourceMap(name,p,response)))):value);
   sourceMapCache.set(key,request);request.catch(()=>sourceMapCache.delete(key));
-  if(sourceMapCache.size>12)sourceMapCache.delete(sourceMapCache.keys().next().value);
+  if(sourceMapCache.size>32)sourceMapCache.delete(sourceMapCache.keys().next().value);
  }return sourceMapCache.get(key);
 }
 async function loadSecondaries(){
- const token=++secondaryRevision;let sourceDrawRevision=0;const sourceRun=run;$('volumeMomentum').disabled=true;
+ const token=++secondaryRevision;let sourceDrawRevision=0;const sourceRun=run,sourceResponse=detectorResponse;$('volumeMomentum').disabled=true;
  $('secondaryDetails').innerHTML='<p>Loading secondaries…</p>';
  const d=await fetchMap(run,secondaryState.plane,'');if(token!==secondaryRevision)return;
  $('secondaryPlane').innerHTML=detectorPlanes(d.planes).filter(p=>!p.endsWith('_bf')&&!p.endsWith('_ff')).map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');
@@ -198,7 +214,7 @@ async function loadSecondaries(){
  if(!h){$('secondaryDetails').innerHTML=warning(d.histograms?.reason||'Secondary analysis unavailable.');return;}
  secondaryFrame=secondaryMapFrame(h);
  $('volumeMomentum').disabled=false;
- $('secondarySelectionNote').textContent=h.quartz?'Charged particles ≥1 MeV':'';
+ $('secondarySelectionNote').textContent='';
  $('secondaryDetails').innerHTML=`<div class="mapGrid secondaryWorkspace"><article class="secondaryMapPanel"><div class="secondaryMapHeading"><h2>Secondary hit map</h2><button id="clearSecondarySource" hidden>All sources</button></div><canvas id="secondaryMap" width="620" height="570"></canvas><p id="secondaryMapScope" class="statusline"></p></article><article class="secondarySourcesPanel"><h2>Secondary creation volumes</h2><p id="volumeBasis" class="statusline"></p><div id="volumePlot"></div><div id="selectedSourceDetails" aria-live="polite"></div></article></div><div class="secondaryEnergyDirections"><article><h2>Secondary kinetic energy</h2><canvas id="energyPlot" width="650" height="410"></canvas><p id="energyStatus" class="statusline" hidden></p></article>${h.quartz?'<article class="directionTable">'+quartzBreakdown(h.quartz)+'</article>':''}</div>`;
  for(const [id,key] of [['volumeMomentum','momentum'],['volumeRegion','region'],['volumeNormalization','normalization']]){
   $(id).value=secondaryState[key];$(id).onchange=()=>{secondaryState[key]=$(id).value;redraw()};
@@ -224,7 +240,7 @@ async function loadSecondaries(){
   const cv=$('secondaryMap');cv.getContext('2d').clearRect(0,0,cv.width,cv.height);cv.onmousemove=null;cv.title='';
   $('secondaryMapScope').textContent='Loading selection…';
   $('energyPlot').hidden=true;$('energyStatus').hidden=false;$('energyStatus').textContent='Loading selection…';
-  loadSourceMap(sourceRun,secondaryState.plane).then(data=>{
+  loadSourceMap(sourceRun,secondaryState.plane,sourceResponse).then(data=>{
    if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;
    const subset=M.selectSourceMap(data,sourceSelection,region,momentum),values=dense(subset);
    drawMap('secondaryMap',values,subset.grid,Math.max(...values,1e-30),false,subset.unit,null,true);
@@ -453,3 +469,5 @@ $('secondaryPlane').onchange=()=>{secondaryState.plane=$('secondaryPlane').value
  clean(document.body);document.title=wording(document.title);
  new MutationObserver(changes=>{for(const c of changes){if(c.type==='childList')c.addedNodes.forEach(clean);else clean(c.target)}}).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['title','aria-label','placeholder']});
 })();
+
+for(const id of ['mapsResponse','secondaryResponse'])$(id).onchange=()=>changeResponse($(id).value).catch(fail);

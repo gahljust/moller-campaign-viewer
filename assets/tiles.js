@@ -11,14 +11,15 @@ const LocalTiles=(()=>{
  const matrix=(m)=>table(['Interaction',...labels()],m.map((row,i)=>[esc(labels()[i]),...row.map(v=>esc(fmt(v)))]));
  const combinedCovariance=f=>f.covariance_ppb2.map((row,i)=>row.map((v,j)=>v+f.template_mc_covariance_ppb2[i][j]));
  async function show(saved,token){
-  const response=await api('deconvolution');if(token!==revision)return true;
+  const bundle=await api('deconvolution',{response:detectorResponse});if(token!==revision)return true;
+  const response=bundle.tiles;saved=bundle.regional;const responseNotice='';
   if(!response.available){
    $('resultTitle').textContent='Deconvolution';
    $('resultScope').textContent=`${targetLabel(saved.scope.target)} · ${+saved.scope.energy_mev/1000} GeV`;
    $('resultBody').innerHTML=`<p class="empty">${esc(response.reason)}</p>${saved.dilution?'<section class="resultSection"><h2>Dilution factors</h2>'+dilutionTable(saved.dilution)+'</section>':''}`;
    return true;
   }
-  data=response.tiles;regional=response.regional;
+  data=response;regional=saved;
   const f=data.forecast,combined=combinedCovariance(f);
   const sampleLabel=`${Number(data.histories/1e6).toLocaleString('en-US',{maximumFractionDigits:2})} million simulated events total · Møller, ep-elastic & ep-inelastic`;
   resultData={...saved,individual_tiles:data,combined_forecast:{covariance_ppb2:combined,standard_error_ppb:combined.map((r,i)=>Math.sqrt(r[i])),method:'Projected experimental statistics plus independent template MC covariance; first-order propagation at the simulated reference, fixed forecast weights.'}};
@@ -45,7 +46,7 @@ const LocalTiles=(()=>{
   </section>
 
   <section class="resultSection"><div class="heading"><h2>Dilution-factor matrices</h2><div class="matrixControls"><label>Grouping<select id="dilutionLayout"><option value="regions">Ring & region</option><option value="tiles">Individual tiles</option></select></label><label>Detector<select id="dilutionSystem">${options(true)}</select></label></div></div>
-   <p class="resultMeta">Main quartz: fractions of crossing rate. ShowerMax: fractions of PE-weighted response. Values ± 1σ MC.</p><div id="dilutionMatrix" class="matrixTable"></div>
+   <p class="resultMeta">Main quartz: ${Number(data.response_mode||0)>=2?'fractions of predicted PE signal':'fractions of crossing rate'}. ShowerMax: fractions of PE-weighted response. Values ± 1σ MC.</p><div id="dilutionMatrix" class="matrixTable"></div>
   </section>
   <section class="resultSection"><div class="heading"><h2>Asymmetry-adjusted dilution matrix H</h2><label>Detector<select id="hSystem">${options(true)}</select></label></div>
    <p class="resultMeta">${esc(sampleLabel)}</p>
@@ -56,8 +57,15 @@ const LocalTiles=(()=>{
    <p class="resultMeta">${scale==='covariance'?'Cᵢⱼ = 10¹⁸ Bᵢⱼ / (Polarization² × Time × Rᵢ × Rⱼ) · ppb² · projected experimental statistics':'ρᵢⱼ = Cᵢⱼ / √(Cᵢᵢ Cⱼⱼ) · dimensionless · normalized from the same covariance'}</p>
    <div class="covarianceExplorer"><div><canvas id="${scale}Map" width="660" height="630" tabindex="0" role="img" aria-label="Tile ${scale} matrix; use arrow keys to inspect cells"></canvas><p class="matrixLegend" id="${scale}Legend"></p></div><div class="matrixReadout"><h3>Inspect a tile pair</h3><p class="resultMeta">Point, tap, or use arrow keys. Display filters leave the full fit unchanged.</p><div id="${scale}Readout" aria-live="polite"></div></div></div>
   </section>`).join('')}`;
+  if(data.response_comparison){
+   const comparison=document.createElement('section');comparison.className='resultSection';
+   const modes=data.response_comparison.modes;
+   comparison.innerHTML='<h2>Rate and PE-weighted results</h2>'+table(['Main detector response','Main only','Main + ShowerMax','Main + ShowerMax: with MC σ'],modes.map(m=>[esc(m.name),... [m.fits.main_only.experimental_covariance.sigma_percent[0],m.fits.main_plus_showermax.experimental_covariance.sigma_percent[0],m.fits.main_plus_showermax.combined_covariance.sigma_percent[0]].map(v=>v.toFixed(4)+'%')]));
+   $('resultBody').append(comparison);
+  }
   const panels=[...$('resultBody').children];
   const tabs=[['deconvolution','Deconvolution'],['asymmetry','Asymmetry uncertainties'],['dilution','Dilution F'],['adjusted','Adjusted dilution H'],['covariance','Covariance C'],['correlation','Correlation']];
+  if(data.response_comparison)tabs.push(['response','Response comparison']);
   const tablist=document.createElement('div');tablist.className='matrixTabs';tablist.setAttribute('role','tablist');tablist.setAttribute('aria-label','Deconvolution matrices');
   tablist.innerHTML=tabs.map(([id,label])=>`<button id="matrixTab-${id}" role="tab" aria-controls="matrixPanel-${id}" data-matrix="${id}">${label}</button>`).join('');
   const navigation=document.createElement('div');navigation.className='matrixNavigation';
@@ -65,6 +73,13 @@ const LocalTiles=(()=>{
   const explorer=document.createElement('section');explorer.id='detectorExplorer';explorer.className='detectorExplorer';explorer.hidden=true;explorer.setAttribute('aria-label','Detector correlations');
   const exploreHint=document.createElement('span');exploreHint.className='exploreHint';exploreHint.textContent='← Click to see a visualization of tile correlation';
   navigation.append(explore,exploreHint);$('resultBody').prepend(navigation,explorer,tablist);
+  {
+   const control=document.createElement('section');control.className='resultSection responseChoice';
+   const choices=data.response_options||[{id:'0',label:'Rate weighting'}];
+   control.innerHTML=`<div class="heading"><label>Main-detector weighting<select id="mainResponse">${choices.map(o=>`<option value="${esc(o.id)}">${esc(o.label)}</option>`).join('')}</select></label></div>${data.response_mode==='2'?'<p>Each selected crossing is weighted by rate × predicted photoelectrons.</p>':''}${responseNotice?`<p class="resultCaution">${esc(responseNotice)}</p>`:''}`;
+   $('resultBody').prepend(control);$('mainResponse').value=data.response_mode||'0';
+   $('mainResponse').onchange=()=>changeResponse($('mainResponse').value).catch(fail);
+  }
   window.DetectorCorrelationData={rows:data.rows,C:f.category_asymmetry_covariance_ppb2,histories:data.histories};
   let detectorFrame=null;
   explore.onclick=()=>{const open=explorer.hidden;explorer.hidden=!open;explore.setAttribute('aria-expanded',String(open));explore.textContent=open?'Hide detector correlations −':'Explore detector correlations +';if(open&&!detectorFrame){detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.src='assets/detector-correlations.html';explorer.append(detectorFrame)}};
@@ -74,7 +89,7 @@ const LocalTiles=(()=>{
    tabs.forEach(([key],i)=>{const selected=key===id;panels[i].hidden=!selected;buttons[i].setAttribute('aria-selected',String(selected));buttons[i].tabIndex=selected?0:-1;if(selected&&focus)buttons[i].focus()});
   }
   tabs.forEach(([id],i)=>{const panel=panels[i];panel.id=`matrixPanel-${id}`;panel.classList.add('matrixPanel');panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',`matrixTab-${id}`);buttons[i].onclick=()=>selectMatrix(id);buttons[i].onkeydown=e=>{let j;if(e.key==='ArrowRight')j=(i+1)%tabs.length;else if(e.key==='ArrowLeft')j=(i+tabs.length-1)%tabs.length;else if(e.key==='Home')j=0;else if(e.key==='End')j=tabs.length-1;else return;e.preventDefault();selectMatrix(tabs[j][0],true)}});
-  selectMatrix(activeMatrix);
+  selectMatrix(tabs.some(([id])=>id===activeMatrix)?activeMatrix:'deconvolution');
   for(const [id,current,update] of [
    ['uncertaintyUnit',uncertaintyUnit,v=>{uncertaintyUnit=v;drawUncertainties()}],
    ...['covariance','correlation'].map(scale=>[`${scale}System`,matrixSystems[scale],v=>{matrixSystems[scale]=v;drawCovariance(scale)}]),
@@ -107,7 +122,7 @@ const LocalTiles=(()=>{
    const rows=data.rows.filter(r=>dilutionSystem==='all'||r.system===dilutionSystem);
    $('dilutionMatrix').innerHTML=table(['Tile',...labels()],rows.map(r=>[esc(rowName(r)),...r.components.map(c=>esc(percentError(c.dilution.value,c.dilution.standard_error)))]));
   }else{
-   const p=regional.dilution;
+   const p=data.regional_dilution||regional.dilution;
    if(!p){$('dilutionMatrix').innerHTML='<p>Regional dilution factors are unavailable.</p>';return}
    const rows=p.rows.filter(r=>dilutionSystem==='all'||r.category.startsWith(dilutionSystem+'_'));
    $('dilutionMatrix').innerHTML=table(['Region',...labels()],rows.map(r=>[esc(categoryName(r.category)),...data.components.map(c=>esc(percentError(r.components[c].dilution,r.components[c].dilution_standard_error)))]));

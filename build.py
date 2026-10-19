@@ -14,7 +14,7 @@ PRODUCT_LIMIT = 2 * 1024 * 1024
 ROUTES = {'catalog', 'maps', 'secondary-sources', 'transport-catalog', 'transport', 'geometry'}
 
 
-def build(source, output, showermax=None, deconvolution=False):
+def build(source, output, showermax=None, deconvolution=False, main_response=False):
     source, output = Path(source).resolve(), Path(output).resolve()
     if source == output or source in output.parents or output in source.parents:
         raise ValueError('Source export and shared output must be separate directories.')
@@ -50,6 +50,12 @@ def build(source, output, showermax=None, deconvolution=False):
     if any(not set(r['members']) <= names for r in combined):
         raise ValueError('Combined view references a different cohort.')
     selected = names | {r['name'] for r in combined}
+    if main_response and not deconvolution:
+        raise ValueError('Main response publication requires deconvolution.')
+    overlay, response_info = {}, None
+    if main_response:
+        from main_response import products
+        overlay, response_info = products(cohort, selected)
     catalog = {'runs': runs, 'combined': combined,
                'default': catalog['default'] if catalog['default'] in names else runs[0]['name']}
     transport = load('transport-catalog?')
@@ -71,6 +77,8 @@ def build(source, output, showermax=None, deconvolution=False):
               'compressed_bytes': 0, 'largest_asset_bytes': 0,
               'source_manifest_sha256': hashlib.sha256((source / 'manifest.json').read_bytes()).hexdigest()}
     written = set()
+    if response_info:
+        result['main_detector_response'] = response_info
 
     def put(key, value):
         raw = json.dumps(value, separators=(',', ':'), allow_nan=False).encode()
@@ -122,7 +130,7 @@ def build(source, output, showermax=None, deconvolution=False):
                 continue
             if route == 'transport' and args.get('name', [''])[0] not in transport_names:
                 continue
-            value = load(key)
+            value = overlay.pop(key) if key in overlay else load(key)
             if route == 'results' and supplemental:
                 name = args['run'][0]
                 if name not in supplemental['selections']:
@@ -143,6 +151,8 @@ def build(source, output, showermax=None, deconvolution=False):
                 totals['selected_histories'] += len(events)
                 totals['crossing_paths'] += paths
                 totals['unique_tracks'] += len(tracks)
+            put(key, value)
+        for key, value in overlay.items():
             put(key, value)
         transport['sample_totals'] = totals
         put('transport-catalog?', transport)
@@ -178,7 +188,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, help='Separate generated shared site directory')
     parser.add_argument('--showermax', type=Path, help='Prepared ShowerMax regional dilution summary')
     parser.add_argument('--deconvolution', action='store_true', help='Include verified tile matrices and video')
+    parser.add_argument('--main-response', action='store_true', help='Include verified rate/PE products on all analysis tabs')
     args = parser.parse_args()
     source, output = (args.source, args.output) if args.source and args.output else defaults()
     source = args.source or source
-    build(source, args.output or output, args.showermax, args.deconvolution)
+    build(source, args.output or output, args.showermax, args.deconvolution, args.main_response)
