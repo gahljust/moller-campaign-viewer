@@ -9,6 +9,7 @@ put('maps?plane=ring5&response=2&run=a&tile=',{unit:'PE/s'});
 put('maps?plane=circle&run=a&tile=',{unit:'PE/s',unchanged:true});
 put('secondary-sources?plane=ring5&run=a',{unit:'crossings/s'});
 put('secondary-sources?plane=ring5&response=2&run=a',{unit:'PE/s'});
+put('surface-maps?plane=ring5&run=a',{cells:[[1,2,3,4,5,6,7,8]]});
 put('deconvolution?response=0',{mode:'0'});put('deconvolution?response=2',{mode:'2'});
 const context={staticManifest:{products,main_detector_response:{runs:['a']}},URLSearchParams,Response,DecompressionStream,TextDecoder,crypto:webcrypto,fetch:async path=>new Response(bodies.get(path)),M:{}};
 vm.createContext(context);vm.runInContext(source,context);
@@ -18,6 +19,7 @@ vm.createContext(context);vm.runInContext(source,context);
   assert.equal((await context.api(route,args)).unit,response==='0'?'crossings/s':'PE/s');assert.equal(args.response,response);
  }
  assert.equal((await context.api('maps',{run:'a',plane:'circle',tile:'',response:'2'})).unchanged,true);
+ for(const response of ['0','2'])assert.equal((await context.api('surface-maps',{run:'a',plane:'ring5',response})).cells[0][7],8);
  for(const response of ['0','2'])assert.equal((await context.api('deconvolution',{response})).mode,response);
  await assert.rejects(context.api('maps',{run:'missing',plane:'ring5',tile:'',response:'2'}),/unavailable/);
  console.log('PASS: static rate/PE routing, unchanged ShowerMax, fit selection and missing-product rejection');

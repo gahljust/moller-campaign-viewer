@@ -1,5 +1,9 @@
 'use strict';
 const $=id=>document.getElementById(id),M=ResearchMath,esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let signalDisplay='current';
+const displaySignal=unit=>HitMap3D.displaySignal(unit,signalDisplay);
+function signalToggle(unit){return unit==='PE/s'?`<div class="regionToggle signalToggle" role="group" aria-label="Signal units"><button data-signal-display="pe" aria-pressed="${signalDisplay==='pe'}">PE</button><button data-signal-display="current" aria-pressed="${signalDisplay==='current'}">Cathode Current</button></div>`:'';}
+const signalText=(value,unit)=>{const d=displaySignal(unit);return fmt(value*d.factor)+' '+d.unit};
 const names={all:'All interactions',ep_inelastic:'ep inelastic',moller:'Møller',ep_elastic:'ep elastic',ep_inelastic_delta:'ep inelastic · Δ',ep_inelastic_resonance:'ep inelastic · resonance',ep_inelastic_continuum:'ep inelastic · continuum',c12_elastic:'C12 elastic',c12_inelastic:'C12 inelastic'};
 const fmt=(v,d=4)=>v==null||!Number.isFinite(+v)?'Unavailable':(+v===0?'0':Math.abs(v)<.001||Math.abs(v)>1e5?(+v).toExponential(d-1):(+v).toPrecision(d));
 let presentation={percentFormat:'{value}% ± {error}%',valueDigits:4,uncertaintyDigits:3,labels:{}},presentationError='';
@@ -20,7 +24,7 @@ async function loadPresentation(){
 }
 const label=r=>`${targetLabel(r.target)} · ${+r.energy_mev/1000} GeV · ${names[r.channel]||r.channel} · ${r.target==='lh2'?'LH2':`sieve ${r.sieve}`} · ${r.cohort==='unverified-history'?'historical, unverified':r.source_commit?.slice(0,8)||r.cohort.slice(0,8)}`;
 let catalog,run,tab=location.hash==='#deconvolution'?'results':'maps',revision=0,resultData,mapData,bank,trackData,geo,playing=false,lastFrame=0,framePending=false,mapRevision=0;
-let detectorResponse='2';
+let detectorResponse='2',regionAggregation='total';
 function syncResponseControls(){
  const supported=!!staticManifest?.main_detector_response&&(tab==='results'||staticManifest.main_detector_response.runs.includes(run));
  if(!supported)detectorResponse='0';
@@ -37,8 +41,8 @@ async function changeResponse(value){
 const cache=new Map();
 let staticManifest;
 async function api(route,args={}){
- staticManifest=staticManifest||await (await fetch('manifest.json?v=main-pe-20261019',{cache:'no-cache'})).json();
- args={...args};
+ staticManifest=staticManifest||await (await fetch('manifest.json?v=surface-maps-20261021',{cache:'no-cache'})).json();
+ args={...args};if(route==='surface-maps')delete args.response;
  if(!staticManifest.main_detector_response||(['maps','secondary-sources'].includes(route)&&(args.response==='0'||['circle','full_plane'].includes(args.plane)||args.tile)))delete args.response;
  let key=route+'?'+new URLSearchParams(Object.entries(args).sort(([a],[b])=>a.localeCompare(b))),item=staticManifest.products[key];
  if(!item)throw Error('This saved product is unavailable.');
@@ -60,8 +64,8 @@ function card(title,value,note=''){return `<div class="card"><span>${esc(title)}
 function fail(e){$(tab==='transport'?'transportNotice':'notice').innerHTML=warning(e.message||e)}
 async function initialize(){try{await loadPresentation();catalog=await api('catalog');catalog.runs=[...catalog.runs,...(catalog.combined||[])];let before=run;$('run').innerHTML=catalog.runs.map(r=>`<option value="${esc(r.name)}">${esc(label(r))}</option>`).join('');run=catalog.runs.some(r=>r.name===before)?before:catalog.default;$('run').value=run;setupSelection();cache.clear();await changeRun()}catch(e){fail(e)}}
 function setupSelection(){setPhysicalPickers(catalog.runs.find(x=>x.name===run))}
-function setPhysicalPickers(preferred={}){let rows=catalog.runs;for(let [id,key] of [['targetSelect','target'],['energySelect','energy_mev'],['processSelect','channel'],['sieveSelect','sieve']]){let values=[...new Set(rows.map(r=>String(r[key])))],wanted=String(preferred[key]??$(id).value),choice=values.includes(wanted)?wanted:values[0];$(id).innerHTML=values.map(v=>`<option value="${esc(v)}">${esc(key==='energy_mev'?+v/1000+' GeV':key==='channel'?names[v]||v:key==='target'?targetLabel(v):v==='none'?'Not applicable':v)}</option>`).join('');$(id).value=choice;rows=rows.filter(r=>String(r[key])===choice)}if(rows.length){run=rows[0].name;$('run').value=run}}
-for(let id of ['targetSelect','energySelect','processSelect','sieveSelect'])$(id).onchange=()=>{setPhysicalPickers();changeRun().catch(fail)};
+function setPhysicalPickers(preferred={}){let rows=catalog.runs;for(let [id,key] of [['targetSelect','target'],['energySelect','energy_mev'],['processSelect','channel']]){let values=[...new Set(rows.map(r=>String(r[key])))],wanted=String(preferred[key]??$(id).value),choice=values.includes(wanted)?wanted:values[0];$(id).innerHTML=values.map(v=>`<option value="${esc(v)}">${esc(key==='energy_mev'?+v/1000+' GeV':key==='channel'?names[v]||v:key==='target'?targetLabel(v):v==='none'?'Not applicable':v)}</option>`).join('');$(id).value=choice;rows=rows.filter(r=>String(r[key])===choice)}if(rows.length){const selected=rows.find(r=>r.name===(preferred.name||run))||rows.find(r=>r.sieve==='none')||rows[0];run=selected.name;$('run').value=run}}
+for(let id of ['targetSelect','energySelect','processSelect'])$(id).onchange=()=>{setPhysicalPickers();changeRun().catch(fail)};
 async function changeRun(){
  revision++;mapRevision++;run=$('run').value;let r=catalog.runs.find(r=>r.name===run);
  $('identity').textContent='';
@@ -104,8 +108,8 @@ function informationPanel(info,p){
  </details></section>`;
 }
 function drawCov(p,id='covMap',tip='covTip'){let cv=$(id),cx=cv.getContext('2d'),n=p.dilution_covariance.length,w=cv.width/n;for(let i=0;i<n;i++)for(let j=0;j<n;j++){let v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]),r=den?v/den:0,a=Math.min(1,Math.abs(r)),color=r<0?[7,125,158]:[244,120,31];cx.fillStyle=`rgb(${color.map(c=>Math.round(255+(c-255)*a)).join(',')})`;cx.fillRect(j*w,i*w,w+.3,w+.3)}cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),j=Math.min(n-1,Math.floor((e.clientX-b.left)/b.width*n)),i=Math.min(n-1,Math.floor((e.clientY-b.top)/b.height*n)),v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]);$(tip).innerHTML=`<p>${esc(p.coordinate_order[i].category)} · ${esc(names[p.coordinate_order[i].component])}<br>with ${esc(p.coordinate_order[j].category)} · ${esc(names[p.coordinate_order[j].component])}</p><p>Correlation: <strong>${den?fmt(v/den):'Undefined (zero variance)'}</strong><br>Covariance: ${fmt(v)} (fraction²)</p>`}}
-function planeLabel(p){return p==='main_detector'?'Main detector · all quartz tiles':p==='circle'?'ShowerMax PE response':p==='full_plane'?'ShowerMax virtual plane 30':/^ring[1-6]$/.test(p)?'Ring '+p[4]+' · quartz tiles':p.replaceAll('_',' ')}
-function detectorPlanes(planes){return [...planes.filter(p=>p==='main_detector'),...planes.filter(p=>p!=='main_detector'&&p!=='full_plane')]}
+function planeLabel(p){return p==='main_detector'?'Main detector · all quartz tiles':p==='circle'?'ShowerMax':p==='full_plane'?'ShowerMax virtual plane 30':/^ring[1-6]$/.test(p)?'Ring '+p[4]+' · quartz tiles':p.replaceAll('_',' ')}
+function detectorPlanes(planes){planes=planes.filter(p=>p!=='full_plane');return [...planes.filter(p=>p==='main_detector'),...planes.filter(p=>p!=='main_detector')]}
 async function fetchMap(name,plane,tile=''){let response=detectorResponse,key=[name,plane,tile,response].join('|');if(cache.has(key))return cache.get(key);let d=await api('maps',{run:name,plane,tile,response});cache.set(key,d);while(cache.size>5)cache.delete(cache.keys().next().value);return d}
 async function loadMap(){
  let token=++mapRevision,plane=$('plane').value||'main_detector',tile=plane==='circle'?$('tile').value||'':'';
@@ -126,33 +130,59 @@ function compactUncertainty(estimate,error){
 function drawMaps(d=mapData){
  if(!d)return;let raw=dense(d),folded=$('foldSectors').checked&&!$('foldSectors').disabled;
  let display=folded?M.fold(raw,d.grid.nx,d.mirror_axis_rad):raw;
- $('mapTitle').textContent=folded?'Sector-pooled hit map':''; $('mapTitle').hidden=!folded;
- drawMap('rawMap',display,d.grid,Math.max(...display,1e-30),false,d.unit);
+ $('mapTitle').textContent='Particle Entries Only'; $('mapTitle').hidden=false;
+ if(window.HitMap3D){loadMainSurface(d)}else drawMap('rawMap',display,d.grid,Math.max(...display,1e-30),false,d.unit);
  let a=d.signal_summary||d.interaction_summary||{estimate:M.sum(raw),standard_error:null};
  compactUncertainty(a.estimate,a.standard_error);
- $('mapScope').innerHTML=`<strong>${fmt(a.estimate)}${a.standard_error==null?'':' ± '+fmt(a.standard_error,3)} ${esc(d.unit)}</strong>${d.normalization?.display_current_uA!=null?' · '+fmt(d.normalization.display_current_uA,3)+' µA':''}`;
- if(d.plane==='full_plane')$('mapScope').innerHTML+='<br><small>Map hides r &lt; 500 mm · rates include the full plane</small>';
+ const units=displaySignal(d.unit);
+ $('mapScope').innerHTML=`<strong>${fmt(a.estimate*units.factor)}${a.standard_error==null?'':' ± '+fmt(a.standard_error*units.factor,3)} ${esc(units.unit)}</strong>${d.normalization?.display_current_uA!=null?' · '+fmt(d.normalization.display_current_uA,3)+' µA beam':''}`;
  $('regionTable').innerHTML=regionPanel(d);
+}
+let mainSurfaceView=null,secondarySurfaceView=null,surfaceRevision=0;
+const surfaceCache=new Map();
+async function loadSurfaceMaps(name,plane,mode=detectorResponse){
+ const key=[name,plane,mode].join('|');
+ if(!surfaceCache.has(key)){
+  const request=api('surface-maps',{run:name,plane,response:mode}).then(async d=>d.source_runs?(await Promise.all(d.source_runs.map(n=>loadSurfaceMaps(n,plane,mode)))).flat():d.source_planes?(await Promise.all(d.source_planes.map(p=>loadSurfaceMaps(name,p,mode)))).flat():[d]);
+  surfaceCache.set(key,request);request.catch(()=>surfaceCache.delete(key));
+  while(surfaceCache.size>24)surfaceCache.delete(surfaceCache.keys().next().value);
+ }
+ return surfaceCache.get(key);
+}
+async function loadMainSurface(d){
+ const revision=++surfaceRevision,mode=detectorResponse;
+ $('mainSurfaceMap').hidden=false;$('rawMap').hidden=true;
+ mainSurfaceView=mainSurfaceView||new HitMap3D.SurfaceView($('mainSurfaceMap'));mainSurfaceView.clear();
+ try{const products=await loadSurfaceMaps(d.run,d.plane,mode);if(revision!==surfaceRevision)return;
+  mainSurfaceView.setData({...HitMap3D.aggregate(products,{mode,plane:d.plane}),signalDisplay});
+ }catch(error){if(revision!==surfaceRevision)return;
+  $('mainSurfaceMap').hidden=true;$('rawMap').hidden=false;const a=dense(d);drawMap('rawMap',a,d.grid,Math.max(...a,1e-30),false,d.unit);
+  $('mapTitle').hidden=false;$('mapTitle').textContent='Particle Entries Only · 2D map';$('mapTitle').title=error.message||String(error);
+ }
 }
 function regionPanel(d){
  const colors=['#077d9e','#f4781f','#455065','#239d93','#8b6aa7'],regions=['open','closed','transition'];
+ const divisor=regionAggregation==='average'?7:1;
  let sources=d.contributions||[{target:d.metadata.target,channel:d.metadata.channel,regions:d.regions}];
  let rows=[],channels=[...new Set(sources.map(r=>r.channel))];
  for(let ch of channels){let parts=sources.filter(r=>r.channel===ch);rows.push({label:names[ch]||ch,values:regions.map(region=>{
   let values=parts.map(p=>p.regions?.available?p.regions.rows.find(r=>r.region===region):null);
   if(values.some(v=>!v))return null;
-  return {estimate:M.sum(values.map(v=>v.estimate)),standard_error:values.every(v=>v.standard_error!=null)?Math.sqrt(M.sum(values.map(v=>v.standard_error**2))):null};
+  return {estimate:M.sum(values.map(v=>v.estimate)),standard_error:values.every(v=>v.standard_error!=null)?Math.sqrt(M.sum(values.map(v=>v.standard_error**2))):null,open_placements:region==='open'&&parts.every(p=>p.regions?.open_placements)?[0,1,2].map(i=>({label:parts[0].regions.open_placements[i].label,estimate:M.sum(parts.map(p=>p.regions.open_placements[i].estimate)),standard_error:Math.sqrt(M.sum(parts.map(p=>p.regions.open_placements[i].standard_error**2)))})):null};
  })})}
  const missing=d.combination?.missing||[];
  for(let item of missing){let[target,ch]=item.split(': ');rows.push({label:(d.metadata.target==='optics_all'?targetLabel(target)+' · ':'')+(names[ch]||ch),values:[null,null,null],missing:true})}
  let values=rows.flatMap(r=>r.values.filter(Boolean)),max=Math.max(...values.map(v=>v.estimate),0);
- let power=max>0?Math.floor(Math.log10(max)/3)*3:0,scale=10**power;
- const cell=v=>v?`<strong>${fmt(v.estimate/scale)}</strong>${v.standard_error==null?'':`<small>± ${fmt(v.standard_error/scale,3)}</small>`}`:'<span class="unavailable">Unavailable</span>';
+ const units=displaySignal(d.unit);
+ let power=units.unit==='nA'?0:max>0?Math.floor(Math.log10(max/divisor)/3)*3:0,scale=10**power/units.factor;
+ const number=v=>`<strong>${fmt(v.estimate/scale/divisor)}</strong>${v.standard_error==null?'':`<small>± ${fmt(v.standard_error/scale/divisor,3)}</small>`}`;
+ const cell=v=>!v?'<span class="unavailable">Unavailable</span>':v.open_placements?`<div class="placementValues">${v.open_placements.map(p=>`<div><span>${esc(p.label)}</span><div>${number(p)}</div></div>`).join('')}</div>`:number(v);
  let tableRows=rows.map((r,i)=>[`${r.missing?'':`<span class="processKey" style="background:${colors[i%colors.length]}"></span>`}${esc(r.label)}`,...r.values.map(cell)]);
- if(channels.length>1&&d.regions?.available)tableRows.push(['<strong>Included total</strong>',...d.regions.rows.map(cell)]);
+ if(channels.length>1&&d.regions?.available)tableRows.push(['<strong>Included total</strong>',...d.regions.rows.map(v=>cell(v.region==='open'&&d.regions.open_placements?{...v,open_placements:d.regions.open_placements}:v))]);
  let note=values.some(v=>v.standard_error==null)?'Regional errors unavailable.':values.length?'± 1σ MC':'';
  if(!values.length)note=d.regions?.reason||'No saved region split for this selection.';
- return `<h2>${d.unit==='PE/s'?'Signal':'Rate'} by region</h2><p class="regionUnits">${power?`×10<sup>${power}</sup> `:''}${esc(d.unit)}${note==='± 1σ MC'?' · '+note:''}</p>${table(['Interaction','Open','Closed','Transition'],tableRows)}${note&&note!=='± 1σ MC'?`<p class="statusline">${esc(note)}</p>`:''}`;
+ const segmented=table(['Interaction','Open','Closed','Transition'],tableRows).replace('<table>',`<table class="regionalTable ${d.regions?.open_placements?'hasPlacements':''}">`).replace('<strong>Included total</strong>','<strong>Total</strong>');
+ return `<div class="regionHeading"><h2>${units.label} by region</h2><div class="regionActions">${signalToggle(d.unit)}<div class="regionToggle" role="group" aria-label="Regional values"><button data-aggregation="total" aria-pressed="${divisor===1}">Total</button><button data-aggregation="average" aria-pressed="${divisor===7}" title="Average per septant">Average</button></div></div></div><p class="regionUnits">${power?`×10<sup>${power}</sup> `:''}${esc(units.unit)} · ${divisor===7?'average per septant':'total'}${note==='± 1σ MC'?' · '+note:''}</p>${segmented}${note&&note!=='± 1σ MC'?`<p class="statusline">${esc(note)}</p>`:''}`;
 }
 function viridis(t){const stops=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];t=Math.max(0,Math.min(.999999,t))*4;let i=Math.floor(t),f=t-i;return stops[i].map((v,k)=>Math.round(v+(stops[i+1][k]-v)*f))}
 let secondaryFrame=null;
@@ -174,14 +204,7 @@ function frameSecondaryValues(a,g){
  for(let j=y0;j<y1;j++)for(let i=x0;i<x1;i++)b[(j-y0)*nx+i-x0]=a[j*g.nx+i];
  return {a:b,g:{...g,nx,ny,x:[g.x[0]+x0*dx,g.x[0]+x1*dx],y:[g.y[0]+y0*dy,g.y[0]+y1*dy]}};
 }
-// Display crop only: do not change stored rates, fractions, or spectra.
-const BEAMLINE_DISPLAY_RADIUS_MM=500;
-function cropBeamline(a,g){
- const cropped=a.slice(),dx=(g.x[1]-g.x[0])/g.nx,dy=(g.y[1]-g.y[0])/g.ny;
- for(let j=0;j<g.ny;j++)for(let i=0;i<g.nx;i++)if(Math.hypot(g.x[0]+(i+.5)*dx,g.y[0]+(j+.5)*dy)<BEAMLINE_DISPLAY_RADIUS_MM)cropped[j*g.nx+i]=0;
- return cropped;
-}
-function drawMap(id,a,g,max,smooth,unit,support=null,linear=false,region="all"){if(a&&((id==='rawMap'&&mapData?.plane==='full_plane')||(id==='secondaryMap'&&secondaryState.plane==='full_plane'))){a=cropBeamline(a,g);max=Math.max(...a,1e-30);}if(id==='secondaryMap'&&a)({a,g}=frameSecondaryValues(a,g));let cv=$(id),cx=cv.getContext('2d'),L=65,T=20,S=445;cx.clearRect(0,0,cv.width,cv.height);cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);if(!a||!M.sum(a)){cx.fillStyle='#455065';cx.font='16px Calibri';cx.fillText(a?'No map recorded for this selection':'Choose a whole plane for folding',85,230);return}let im=cx.createImageData(S,S);for(let y=0;y<S;y++)for(let x=0;x<S;x++){let xx=(x+.5)/S*g.nx-.5,yy=(1-(y+.5)/S)*g.ny-.5,v=smooth&&g.nx===g.ny?M.sample(a,g.nx,xx,yy):a[Math.max(0,Math.min(g.ny-1,Math.round(yy)))*g.nx+Math.max(0,Math.min(g.nx-1,Math.round(xx)))],rgb=v>0&&(region==='all'||M.azimuthRegion(g.x[0]+(x+.5)/S*(g.x[1]-g.x[0]),g.y[1]-(y+.5)/S*(g.y[1]-g.y[0]))===region)&&(!support||support[Math.max(0,Math.min(g.ny-1,Math.round(yy)))*g.nx+Math.max(0,Math.min(g.nx-1,Math.round(xx)))])?viridis(linear?v/max:Math.log1p(v/max*999)/Math.log(1000)):[255,255,255],k=(y*S+x)*4;im.data.set([...rgb,255],k)}cx.putImageData(im,L,T);if(id==='secondaryMap'){cx.save();cx.lineWidth=1;for(let i=1;i<8;i++){let f=i/8;cx.strokeStyle=i%2===0?'rgba(69,80,101,0.24)':'rgba(69,80,101,0.12)';cx.beginPath();cx.moveTo(L+f*S,T);cx.lineTo(L+f*S,T+S);cx.moveTo(L,T+f*S);cx.lineTo(L+S,T+f*S);cx.stroke()}cx.restore()}cx.strokeStyle='#d9dee6';cx.strokeRect(L,T,S,S);cx.font=(['secondaryMap','rawMap'].includes(id)?'20':'14')+'px '+getComputedStyle(document.body).fontFamily;cx.fillStyle='#455065';for(let i=0;i<=4;i++){let f=i/4,x=L+f*S,y=T+(1-f)*S;cx.textAlign='center';cx.fillText(Math.round(g.x[0]+f*(g.x[1]-g.x[0])),x,T+S+23);cx.textAlign='right';cx.fillText(Math.round(g.y[0]+f*(g.y[1]-g.y[0])),L-8,y+5)}cx.textAlign='center';cx.fillText((g.nx===16?'Local':'Global')+' x [mm]',L+S/2,T+S+53);cx.save();cx.translate(16,T+S/2);cx.rotate(-Math.PI/2);cx.fillText((g.nx===16?'Local':'Global')+' y [mm]',0,0);cx.restore();for(let y=0;y<S;y++){cx.fillStyle=`rgb(${viridis(1-y/S)})`;cx.fillRect(535,T+y,14,1)}cx.textAlign='right';cx.fillStyle='#455065';cx.fillText(fmt(max,3),cv.width-8,16);cx.textAlign='left';cx.fillText('0',555,T+S);cx.fillText((linear?'':'log color · ')+unit+'/bin',L,T+S+78);cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),x=(e.clientX-b.left)/b.width*cv.width,y=(e.clientY-b.top)/b.height*cv.height,i=Math.floor((x-L)/S*g.nx),j=Math.floor((1-(y-T)/S)*g.ny);cv.title=i>=0&&j>=0&&i<g.nx&&j<g.ny&&(region==='all'||M.azimuthRegion(g.x[0]+(x-L)/S*(g.x[1]-g.x[0]),g.y[1]-(y-T)/S*(g.y[1]-g.y[0]))===region)?fmt(a[j*g.nx+i])+' '+unit+'/bin':''}}
+function drawMap(id,a,g,max,smooth,unit,support=null,linear=false,region="all"){const units=displaySignal(unit);if(id==='secondaryMap'&&a)({a,g}=frameSecondaryValues(a,g));let cv=$(id),cx=cv.getContext('2d'),L=65,T=20,S=445;cx.clearRect(0,0,cv.width,cv.height);cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);if(!a||!M.sum(a)){cx.fillStyle='#455065';cx.font='16px Calibri';cx.fillText(a?'No map recorded for this selection':'Choose a whole plane for folding',85,230);return}let im=cx.createImageData(S,S);for(let y=0;y<S;y++)for(let x=0;x<S;x++){let xx=(x+.5)/S*g.nx-.5,yy=(1-(y+.5)/S)*g.ny-.5,v=smooth&&g.nx===g.ny?M.sample(a,g.nx,xx,yy):a[Math.max(0,Math.min(g.ny-1,Math.round(yy)))*g.nx+Math.max(0,Math.min(g.nx-1,Math.round(xx)))],rgb=v>0&&(region==='all'||M.azimuthRegion(g.x[0]+(x+.5)/S*(g.x[1]-g.x[0]),g.y[1]-(y+.5)/S*(g.y[1]-g.y[0]))===region)&&(!support||support[Math.max(0,Math.min(g.ny-1,Math.round(yy)))*g.nx+Math.max(0,Math.min(g.nx-1,Math.round(xx)))])?viridis(linear?v/max:Math.log1p(v/max*999)/Math.log(1000)):[255,255,255],k=(y*S+x)*4;im.data.set([...rgb,255],k)}cx.putImageData(im,L,T);if(id==='secondaryMap'){cx.save();cx.lineWidth=1;for(let i=1;i<8;i++){let f=i/8;cx.strokeStyle=i%2===0?'rgba(69,80,101,0.24)':'rgba(69,80,101,0.12)';cx.beginPath();cx.moveTo(L+f*S,T);cx.lineTo(L+f*S,T+S);cx.moveTo(L,T+f*S);cx.lineTo(L+S,T+f*S);cx.stroke()}cx.restore()}cx.strokeStyle='#d9dee6';cx.strokeRect(L,T,S,S);cx.font=(['secondaryMap','rawMap'].includes(id)?'20':'14')+'px '+getComputedStyle(document.body).fontFamily;cx.fillStyle='#455065';for(let i=0;i<=4;i++){let f=i/4,x=L+f*S,y=T+(1-f)*S;cx.textAlign='center';cx.fillText(Math.round(g.x[0]+f*(g.x[1]-g.x[0])),x,T+S+23);cx.textAlign='right';cx.fillText(Math.round(g.y[0]+f*(g.y[1]-g.y[0])),L-8,y+5)}cx.textAlign='center';cx.fillText((g.nx===16?'Local':'Global')+' x [mm]',L+S/2,T+S+53);cx.save();cx.translate(16,T+S/2);cx.rotate(-Math.PI/2);cx.fillText((g.nx===16?'Local':'Global')+' y [mm]',0,0);cx.restore();for(let y=0;y<S;y++){cx.fillStyle=`rgb(${viridis(1-y/S)})`;cx.fillRect(535,T+y,14,1)}cx.textAlign='right';cx.fillStyle='#455065';cx.fillText(fmt(max*units.factor,3),cv.width-8,16);cx.textAlign='left';cx.fillText('0',555,T+S);cx.fillText((linear?'':'log color · ')+units.unit+'/bin',L,T+S+78);cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),x=(e.clientX-b.left)/b.width*cv.width,y=(e.clientY-b.top)/b.height*cv.height,i=Math.floor((x-L)/S*g.nx),j=Math.floor((1-(y-T)/S)*g.ny);cv.title=i>=0&&j>=0&&i<g.nx&&j<g.ny&&(region==='all'||M.azimuthRegion(g.x[0]+(x-L)/S*(g.x[1]-g.x[0]),g.y[1]-(y-T)/S*(g.y[1]-g.y[0]))===region)?fmt(a[j*g.nx+i]*units.factor)+' '+units.unit+'/bin':''}}
 const quartzLabels={forward_primary:'Forward primaries',forward_secondary:'Forward secondaries',backward_electron:'Backward electrons (backsplash)',backward_other:'Other backward particles',uncertain_direction:'Entry direction unresolved',zero_pz:'Zero longitudinal momentum',first_tile:'First tile in this ring',additional_tile:'Another tile in this ring',same_tile_return:'Return to the same tile',duplicate_record:'Identical repeated record'};
 function quartzBreakdown(q){
  const byKey=Object.fromEntries(q.direction.map(row=>[row.key,row]));
@@ -191,7 +214,7 @@ function quartzBreakdown(q){
   fraction_standard_error:other.fraction===0&&other.fraction_standard_error===0?electron.fraction_standard_error:electron.fraction===0&&electron.fraction_standard_error===0?other.fraction_standard_error:null}:null;
  const rows=[['Forward primaries',byKey.forward_primary],['Forward secondaries',byKey.forward_secondary],['Backward particles',backward],['Unresolved',byKey.uncertain_direction]];
  const value=r=>r?.fraction==null?'Unavailable':`<strong>${fmt(100*r.fraction,3)}%${r.fraction_standard_error==null?'':' ± '+fmt(100*r.fraction_standard_error,2)+'%'}</strong>${r.fraction_standard_error==null?'<small>MC error unavailable</small>':''}`;
- return '<h2>Direction at tiles</h2><p class="statusline">'+(q.selection==='main_pe_response'?'Rate × PE response':'Rate weighting')+' · ±1σ MC</p>'+table(['Population','Signal share','Sample entries'],rows.map(([label,row])=>[label,value(row),row?row.entries.toLocaleString():'Unavailable']));
+ return '<h2>Direction at tiles</h2><p class="statusline">'+(q.selection==='main_pe_response'?'PE weighted signal':'Rate weighting')+' · ±1σ MC</p>'+table(['Population','Signal share','Sample entries'],rows.map(([label,row])=>[label,value(row),row?row.entries.toLocaleString():'Unavailable']));
 }
 
 let secondaryRevision=0,secondaryState={plane:'main_detector',momentum:'all',normalization:'total',region:'all',source:null};
@@ -206,6 +229,7 @@ async function loadSourceMap(name,plane,response=detectorResponse){
 }
 async function loadSecondaries(){
  const token=++secondaryRevision;let sourceDrawRevision=0;const sourceRun=run,sourceResponse=detectorResponse;$('volumeMomentum').disabled=true;
+ secondarySurfaceView?.dispose();secondarySurfaceView=null;
  $('secondaryDetails').innerHTML='<p>Loading secondaries…</p>';
  const d=await fetchMap(run,secondaryState.plane,'');if(token!==secondaryRevision)return;
  $('secondaryPlane').innerHTML=detectorPlanes(d.planes).filter(p=>!p.endsWith('_bf')&&!p.endsWith('_ff')).map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');
@@ -215,13 +239,17 @@ async function loadSecondaries(){
  secondaryFrame=secondaryMapFrame(h);
  $('volumeMomentum').disabled=false;
  $('secondarySelectionNote').textContent='';
- $('secondaryDetails').innerHTML=`<div class="mapGrid secondaryWorkspace"><article class="secondaryMapPanel"><div class="secondaryMapHeading"><h2>Secondary hit map</h2><button id="clearSecondarySource" hidden>All sources</button></div><canvas id="secondaryMap" width="620" height="570"></canvas><p id="secondaryMapScope" class="statusline"></p></article><article class="secondarySourcesPanel"><h2>Secondary creation volumes</h2><p id="volumeBasis" class="statusline"></p><div id="volumePlot"></div><div id="selectedSourceDetails" aria-live="polite"></div></article></div><div class="secondaryEnergyDirections"><article><h2>Secondary kinetic energy</h2><canvas id="energyPlot" width="650" height="410"></canvas><p id="energyStatus" class="statusline" hidden></p></article>${h.quartz?'<article class="directionTable">'+quartzBreakdown(h.quartz)+'</article>':''}</div>`;
+ $('secondaryDetails').innerHTML=`<div class="mapGrid secondaryWorkspace"><article class="secondaryMapPanel"><div class="secondaryMapHeading"><div><h2>Secondary hit map</h2><p class="entryLabel">Particle Entries Only</p></div>${signalToggle(d.unit)}<button id="clearSecondarySource" hidden>All sources</button></div><div id="secondarySurfaceMap" class="surfaceMap"></div><canvas id="secondaryMap" width="620" height="570" hidden></canvas><p id="secondaryMapScope" class="statusline"></p></article><article class="secondarySourcesPanel"><h2>Secondary creation volumes</h2><p id="volumeBasis" class="statusline"></p><div id="volumePlot"></div><div id="selectedSourceDetails" aria-live="polite"></div></article></div><div class="secondaryEnergyDirections"><article><h2>Secondary kinetic energy</h2><canvas id="energyPlot" width="650" height="410"></canvas><p id="energyStatus" class="statusline" hidden></p></article>${h.quartz?'<article class="directionTable">'+quartzBreakdown(h.quartz)+'</article>':''}</div>`;
  for(const [id,key] of [['volumeMomentum','momentum'],['volumeRegion','region'],['volumeNormalization','normalization']]){
   $(id).value=secondaryState[key];$(id).onchange=()=>{secondaryState[key]=$(id).value;redraw()};
  }
+ secondarySurfaceView=new HitMap3D.SurfaceView($('secondarySurfaceMap'));
  $('clearSecondarySource').onclick=()=>{secondaryState.source=null;redraw()};
  function redraw(){
-  const drawToken=++sourceDrawRevision;
+  $('secondaryDetails').querySelectorAll('[data-signal-display]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.signalDisplay===signalDisplay));b.onclick=()=>{signalDisplay=b.dataset.signalDisplay;redraw()}});
+  const drawToken=++sourceDrawRevision;let fallback=false,sourceSubset=null;
+  const fallbackMap=()=>{if(!sourceSubset||token!==secondaryRevision||drawToken!==sourceDrawRevision)return;const a=dense(sourceSubset);$('secondarySurfaceMap').hidden=true;$('secondaryMap').hidden=false;drawMap('secondaryMap',a,sourceSubset.grid,Math.max(...a,1e-30),false,sourceSubset.unit,null,true);$('secondaryMapScope').textContent='2D map · 3D data not yet extracted · '+signalText(sourceSubset.weight,sourceSubset.unit);};
+  $('secondarySurfaceMap').hidden=false;$('secondaryMap').hidden=true;
   const {momentum,region,normalization,source}=secondaryState;
   $('clearSecondarySource').hidden=!source;
   const regional=region==='all'?h:h.secondary_regions?.[region];
@@ -238,13 +266,19 @@ async function loadSecondaries(){
    drawVolumes({...selected,volume_groups:visibleGroups},name=>{secondaryState.source=secondaryState.source===name?null:name;redraw()},source);
   }
   const cv=$('secondaryMap');cv.getContext('2d').clearRect(0,0,cv.width,cv.height);cv.onmousemove=null;cv.title='';
+  secondarySurfaceView.clear();
+  loadSurfaceMaps(sourceRun,secondaryState.plane,sourceResponse).then(products=>{
+   if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;
+   secondarySurfaceView.setData({...HitMap3D.aggregate(products,{secondary:true,source:sourceSelection,region,momentum,mode:sourceResponse,plane:secondaryState.plane}),signalDisplay});
+  }).catch(error=>{if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;fallback=true;fallbackMap();});
   $('secondaryMapScope').textContent='Loading selection…';
   $('energyPlot').hidden=true;$('energyStatus').hidden=false;$('energyStatus').textContent='Loading selection…';
   loadSourceMap(sourceRun,secondaryState.plane,sourceResponse).then(data=>{
    if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;
    const subset=M.selectSourceMap(data,sourceSelection,region,momentum),values=dense(subset);
-   drawMap('secondaryMap',values,subset.grid,Math.max(...values,1e-30),false,subset.unit,null,true);
-   $('secondaryMapScope').textContent=(source?source+' · ':'')+fmt(subset.weight)+' '+subset.unit+' · '+(region==='all'?'All regions':region)+' · '+momentum+' momentum · 25 × 25 mm bins'+(secondaryState.plane==='full_plane'?' · Map hides r < 500 mm; totals include center':'');
+   sourceSubset=subset;
+   // Source/energy summaries retain their verified totals; spatial bins are loaded separately.
+   $('secondaryMapScope').textContent=(source?source+' · ':'')+signalText(subset.weight,subset.unit)+' · '+(region==='all'?'All regions':region)+' · '+momentum+' momentum · 10 mm surface bins';if(fallback)fallbackMap();
    if(!subset.energy){$('energyStatus').textContent='Matching energy spectrum unavailable; updated extraction required.';return;}
    $('energyPlot').hidden=false;$('energyStatus').hidden=true;drawEnergy(subset);
   }).catch(error=>{if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;$('secondaryMapScope').textContent=error.message||error;$('energyStatus').textContent='Matching energy spectrum unavailable.';});
@@ -439,7 +473,7 @@ $('tracks').onkeydown=e=>{let keys={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0
 $('trackColor').onchange=drawTracks;
 function scheduleAnimation(){if(animationFramePending)return;animationFramePending=true;requestAnimationFrame(animate)}
 function animate(now){animationFramePending=false;if(playing&&tab==='transport'){if(lastFrame)streamClock+=Math.min(now-lastFrame,100)/18000*+$('speed').value;drawTracks()}lastFrame=now;if(playing)scheduleAnimation()}
-$('run').onchange=()=>changeRun().catch(fail);document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));$('plane').onchange=()=>{$('tile').value='';loadMap().catch(fail)};$('tile').onchange=()=>loadMap().catch(fail);$('foldSectors').onchange=()=>{try{drawMaps()}catch(e){fail(e)}};$('trackRun').onchange=()=>loadTracks().catch(fail);$('camera').onchange=resetCamera;$('trackFocus').onchange=resetCamera;$('resetCamera').onclick=resetCamera;$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';if(playing){lastFrame=0;scheduleAnimation()}};$('restart').onclick=()=>{streamClock=0;lastFrame=0;drawTracks()};document.addEventListener('visibilitychange',()=>{if(document.hidden){playing=false;$('play').textContent='Play'}});initialize();
+$('run').onchange=()=>changeRun().catch(fail);document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));$('plane').onchange=()=>{$('tile').value='';loadMap().catch(fail)};$('tile').onchange=()=>loadMap().catch(fail);$('regionTable').onclick=e=>{const units=e.target.closest('[data-signal-display]');if(units){signalDisplay=units.dataset.signalDisplay;drawMaps();return}const button=e.target.closest('[data-aggregation]');if(!button)return;regionAggregation=button.dataset.aggregation;if(mapData)$('regionTable').innerHTML=regionPanel(mapData)};$('foldSectors').onchange=()=>{try{drawMaps()}catch(e){fail(e)}};$('trackRun').onchange=()=>loadTracks().catch(fail);$('camera').onchange=resetCamera;$('trackFocus').onchange=resetCamera;$('resetCamera').onclick=resetCamera;$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';if(playing){lastFrame=0;scheduleAnimation()}};$('restart').onclick=()=>{streamClock=0;lastFrame=0;drawTracks()};document.addEventListener('visibilitychange',()=>{if(document.hidden){playing=false;$('play').textContent='Play'}});initialize();
 
 function eventCorrelationPanel(info,p){
  if(!info?.available)return '';

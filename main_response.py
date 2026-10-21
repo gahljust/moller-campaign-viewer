@@ -10,6 +10,7 @@ def products(cohort, selected):
     from background_campaign.main_detector_response import map_product, viewer_product
     from background_campaign.deconvolution.tile_product import product as tile_product
     from background_campaign.showermax_live import research
+    from background_campaign.showermax_live import detector_maps
     from background_campaign.showermax_live.export_research import compact_secondary_display
     from background_campaign.showermax_live.secondary_sources import compact
     manifest=research.read(map_product.OUT/'manifest.json')
@@ -28,14 +29,20 @@ def products(cohort, selected):
         values[route+'?'+urlencode(sorted(args.items()))]=json.loads(raw)
     for name in names:
         map_product.selection(name,research.RUNS)
-        for plane in map_product.PLANES:
+        for plane in [*map_product.PLANES, 'circle']:
             # Refresh rate products as well: never reuse a stale combined summary.
-            base=research.maps(name,plane)
+            base=map_product.response('maps',{'run':[name],'plane':[plane],'response':['0']})
             if name==combined[0]['name']:
                 base.pop('bins');base['map_recipe']='sum_source_maps_v1'
             put('maps',{'run':name,'plane':plane,'tile':''},compact_secondary_display(base))
-            pe=map_product.maps(name,plane,'')
-            put('maps',{'run':name,'plane':plane,'tile':'','response':'2'},compact_secondary_display(pe))
+            if plane!='circle':
+                pe=map_product.response('maps',{'run':[name],'plane':[plane],'response':['2']})
+                put('maps',{'run':name,'plane':plane,'tile':'','response':'2'},compact_secondary_display(pe))
+            surface=({'schema':'detector_surface_recipe_v1','source_planes':[plane[:-3]],'run':name}
+                if plane.endswith(('_bf','_ff')) else detector_maps.surfaces(name,plane,'0',research.RUNS))
+            # Both display weightings use the same cells; do not duplicate geometry/data.
+            surface.pop('response_mode',None)
+            put('surface-maps',{'run':name,'plane':plane},surface)
         for plane in ['main_detector',*[f'ring{i}' for i in range(1,7)]]:
             put('secondary-sources',{'run':name,'plane':plane,'response':'2'},compact(map_product.sources(name,plane)))
     name=next(n for n in runs if manifest['runs'][n]['metadata']['channel']=='moller')

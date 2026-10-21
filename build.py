@@ -9,7 +9,7 @@ import shutil
 from urllib.parse import parse_qs
 
 HERE = Path(__file__).resolve().parent
-BUDGET = 80 * 1024 * 1024
+BUDGET = 96 * 1024 * 1024
 PRODUCT_LIMIT = 2 * 1024 * 1024
 ROUTES = {'catalog', 'maps', 'secondary-sources', 'transport-catalog', 'transport', 'geometry'}
 
@@ -92,7 +92,7 @@ def build(source, output, showermax=None, deconvolution=False, main_response=Fal
             result['compressed_bytes'] += len(body)
             result['largest_asset_bytes'] = max(result['largest_asset_bytes'], len(body))
             if result['compressed_bytes'] > BUDGET:
-                raise ValueError('Shared package exceeds 80 MiB.')
+                raise ValueError('Shared package exceeds 96 MiB.')
             (staging / 'data' / name).write_bytes(body)
         result['products'][key] = {'path': 'data/' + name, 'sha256': digest, 'bytes': len(body)}
 
@@ -122,6 +122,8 @@ def build(source, output, showermax=None, deconvolution=False, main_response=Fal
 
         put('catalog?', catalog)
         for key in manifest['products']:
+            if key in overlay:
+                continue
             route, _, query = key.partition('?')
             if route not in ROUTES or route in ('catalog', 'transport-catalog'):
                 continue

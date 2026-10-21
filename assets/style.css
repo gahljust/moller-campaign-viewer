@@ -136,3 +136,47 @@ header{gap:18px;flex-wrap:wrap}header a{margin-left:auto}#stopViewer{font-size:1
 @media(max-width:600px){.detectorCorrelationsFrame{height:1100px}.exploreCorrelations{font-size:14px;padding:12px 16px}}
 
 .exploreHint{font-size:15px;color:var(--slate)}
+
+/* Detector-resolved heat maps share the correlation viewer's compact controls. */
+.surfaceMap{width:100%;min-width:0;border:1px solid #d9dee6;border-radius:8px;overflow:hidden;background:#0c1420}
+.surfaceToolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:#101c2b;border-bottom:1px solid #2a3b4d;color:#c5d5e5}
+.surfaceToolbar>div{display:flex;gap:5px}.surfaceToolbar button{padding:5px 8px;font-size:12px;border:1px solid #34495f;background:#142335;color:#c5d5e5;border-radius:5px;min-height:0}
+.surfaceToolbar button[aria-pressed=true]{background:#254959;border-color:#7de1dc;color:#acffec}.surfaceToolbar label{display:flex;align-items:center;gap:4px;font-size:12px;margin:0}.surfaceToolbar input{accent-color:#66dcca}
+.surfaceStage{position:relative;height:clamp(390px,53vh,640px)}.surfaceStage canvas{display:block;width:100%!important;height:100%!important;aspect-ratio:auto!important;touch-action:none;cursor:grab}
+.surfaceMessage{position:absolute;top:44%;left:8%;right:8%;text-align:center;color:#b8cddd;font-size:14px;pointer-events:none}
+.surfaceLegend{position:absolute;bottom:16px;left:16px;width:220px;pointer-events:none;color:#b8cddd;font-size:11px}.surfaceRamp{height:9px;border-radius:2px}.surfaceEnds{display:flex;justify-content:space-between;margin:4px 0 2px}.surfaceHelp{position:absolute;right:12px;bottom:16px;color:#8fa6bc;font-size:10px;pointer-events:none}
+.placementValues{display:grid;gap:5px;min-width:105px}.placementValues>div{display:grid;grid-template-columns:40px 1fr;gap:8px;padding:4px 0}.placementValues>div+div{border-top:1px solid #e4e8ed}.placementValues>div>span{font-size:11px;color:#6c7784;align-self:center;text-align:left}.placementValues small{font-size:11px!important}
+@media(max-width:700px){.surfaceStage{height:390px}.surfaceHelp{display:none}.surfaceToolbar button{font-size:11px;padding:5px}.surfaceLegend{width:180px}.placementValues{min-width:95px}}
+
+.surfaceMap .surfaceToolbar label{flex-direction:row;color:#c5d5e5;white-space:nowrap}.surfaceMap .surfaceToolbar input{margin:0;width:13px;height:13px}
+
+#regionTable .placementValues>div{padding:3px 0}#regionTable .placementValues>div>div{display:flex;align-items:baseline;justify-content:flex-end;gap:6px}#regionTable .placementValues small{display:inline;white-space:nowrap}
+
+/* Region blocks keep placement values inside the Open column at every width. */
+#maps #regionTable .regionalTable th:first-child{width:24%}
+#maps #regionTable .regionalTable.hasPlacements th:nth-child(2){width:36%}
+#maps #regionTable .regionalTable.hasPlacements th:nth-child(3),#maps #regionTable .regionalTable.hasPlacements th:nth-child(4){width:20%}
+#maps #regionTable .regionalTable td+td{border-left:1px solid #d4dce4}
+#maps #regionTable .regionalTable tbody tr+tr td{border-top:2px solid #ccd6df}
+#maps #regionTable .regionalTable tbody tr:last-child:not(:first-child) td{border-top:3px solid #377e94;background:#eaf3f6}
+#maps #regionTable .placementValues{min-width:0;gap:0}
+#maps #regionTable .placementValues>div{grid-template-columns:36px minmax(0,1fr);gap:4px;padding:5px 0}
+#maps #regionTable .placementValues>div>div{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:3px 6px;min-width:0}
+#maps #regionTable .placementValues small{display:inline;font-size:11px!important}
+#mapTitle,.entryLabel{font:600 12px/1.4 var(--font-body,Calibri,sans-serif);letter-spacing:.04em;color:#455065;margin:0 0 8px}
+.secondaryMapHeading .entryLabel{margin:2px 0 8px}
+
+.mapsControls{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}
+.regionHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.regionToggle{display:inline-flex;flex-shrink:0;border:1px solid #b8cbd3;border-radius:5px;overflow:hidden}
+.regionToggle button{font-size:12px;line-height:1.3;padding:5px 10px;border:0;border-radius:0;background:#fff}
+.regionToggle button+button{border-left:1px solid #b8cbd3}
+.regionToggle button[aria-pressed=true]{background:#077d9e;color:#fff;font-weight:600}
+.regionToggle button:focus-visible{outline:2px solid #f4781f;outline-offset:-2px}
+
+.regionActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.regionHeading{row-gap:6px}.secondaryMapHeading{flex-wrap:wrap}.secondaryMapHeading .signalToggle{margin-left:auto}
+
+.surfaceNavigation{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:#101c2b;color:#8fa6bc;border-bottom:1px solid #2a3b4d;font-size:11px}
+.surfaceNavigation>div{display:flex;gap:4px}.surfaceNavigation button{padding:3px 9px;font-size:12px;background:#142335;border:1px solid #34495f;color:#c5d5e5}
+.surfaceNavigation button[aria-pressed=true]{background:#254959;border-color:#7de1dc;color:#acffec}.surfaceStage canvas.dragging{cursor:grabbing}
+@media(max-width:480px){.surfaceNavigation>span{display:none}}
