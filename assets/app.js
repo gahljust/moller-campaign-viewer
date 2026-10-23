@@ -41,7 +41,7 @@ async function changeResponse(value){
 const cache=new Map();
 let staticManifest;
 async function api(route,args={}){
- staticManifest=staticManifest||await (await fetch('manifest.json?v=surface-maps-20261021',{cache:'no-cache'})).json();
+ staticManifest=staticManifest||await (await fetch('manifest.json?v=analysis-unwrap-20261022',{cache:'no-cache'})).json();
  args={...args};if(route==='surface-maps')delete args.response;
  if(!staticManifest.main_detector_response||(['maps','secondary-sources'].includes(route)&&(args.response==='0'||['circle','full_plane'].includes(args.plane)||args.tile)))delete args.response;
  let key=route+'?'+new URLSearchParams(Object.entries(args).sort(([a],[b])=>a.localeCompare(b))),item=staticManifest.products[key];
@@ -81,7 +81,7 @@ function interactionPanel(d,unit='PE/s',current=null){
  let sigma=(v,e)=>fmt(v)+(e==null?' · uncertainty unavailable':' ± '+fmt(e,3));
  return `<div class="combinedPanel"><h2>Interaction contributions</h2><div class="cards">${card('Recorded signal',sigma(a.estimate,a.standard_error)+' '+unit,current==null?'Independent source runs':current+' µA beam current')}${card('Interactions',a.components.length,'Fractions of the recorded signal')}</div><div class="contributionStack" role="img" aria-label="Interaction fractions">${a.components.map((r,i)=>`<span style="width:${100*(r.fraction||0)}%;background:${colors[i%colors.length]}" title="${esc(names[r.channel]||r.channel)}: ${esc(percentError(r.fraction,r.fraction_standard_error))}"></span>`).join('')}</div>${table(['Interaction',`Signal [${unit}]`,'Signal fraction ± MC error'],a.components.map((r,i)=>[`<span class="processKey" style="background:${colors[i%colors.length]}"></span>${esc(names[r.channel]||r.channel)}`,esc(sigma(r.estimate,r.standard_error)),`<strong>${esc(percentError(r.fraction,r.fraction_standard_error))}</strong>`]))}</div>`;
 }
-async function showTab(name){if(!['results','maps','secondaries','transport'].includes(name))return;mapRevision++;secondaryRevision++;tab=name;syncResponseControls();if(name!=='results')$('deconvolutionVideo').pause();document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
+async function showTab(name){if(!['results','maps','analysis','secondaries','transport'].includes(name))return;if(!catalog||!run){tab=name;return;}mapRevision++;secondaryRevision++;tab=name;syncResponseControls();if(name!=='results')$('deconvolutionVideo').pause();document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps'||name==='analysis');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport';$('notice').hidden=tab==='transport';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='analysis')await showAnalysis();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
 async function showResults(){
  $('notice').innerHTML='';
  $('resultBody').innerHTML='<p>Loading…</p>';
@@ -138,6 +138,8 @@ function drawMaps(d=mapData){
  $('mapScope').innerHTML=`<strong>${fmt(a.estimate*units.factor)}${a.standard_error==null?'':' ± '+fmt(a.standard_error*units.factor,3)} ${esc(units.unit)}</strong>${d.normalization?.display_current_uA!=null?' · '+fmt(d.normalization.display_current_uA,3)+' µA beam':''}`;
  $('regionTable').innerHTML=regionPanel(d);
 }
+let tileAnalysisView=null;
+async function showAnalysis(){if(!tileAnalysisView)tileAnalysisView=new TileAnalysis.AnalysisView($('analysis'),{load:name=>api('pe-histograms',{run:name})});$('analysisCampaign').append($('analysisSelection'));await tileAnalysisView.show(run);}
 let mainSurfaceView=null,secondarySurfaceView=null,surfaceRevision=0;
 const surfaceCache=new Map();
 async function loadSurfaceMaps(name,plane,mode=detectorResponse){

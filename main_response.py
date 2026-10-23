@@ -10,7 +10,7 @@ def products(cohort, selected):
     from background_campaign.main_detector_response import map_product, viewer_product
     from background_campaign.deconvolution.tile_product import product as tile_product
     from background_campaign.showermax_live import research
-    from background_campaign.showermax_live import detector_maps
+    from background_campaign.showermax_live import detector_maps, pe_histograms
     from background_campaign.showermax_live.export_research import compact_secondary_display
     from background_campaign.showermax_live.secondary_sources import compact
     manifest=research.read(map_product.OUT/'manifest.json')
@@ -45,6 +45,17 @@ def products(cohort, selected):
             put('surface-maps',{'run':name,'plane':plane},surface)
         for plane in ['main_detector',*[f'ring{i}' for i in range(1,7)]]:
             put('secondary-sources',{'run':name,'plane':plane,'response':'2'},compact(map_product.sources(name,plane)))
+    # Histograms retain exact unbinned moments and 1 PE display bins.
+    for name in sorted(selected):
+        if name in names:
+            hist=pe_histograms.product(name)
+            if not hist.get('available'):raise ValueError(hist.get('reason','PE histograms unavailable'))
+            if any(t['bin_width']!=1 for t in hist['tiles']):raise ValueError('Expected 1 PE histogram bins')
+        else:
+            hist={'schema':'tile_pe_analysis_v1','available':False,'run':name,
+                  'reason':'PE distributions are not available for this campaign.',
+                  'faces':[],'rows':[],'tiles':[]}
+        put('pe-histograms',{'run':name},hist)
     name=next(n for n in runs if manifest['runs'][n]['metadata']['channel']=='moller')
     baseline=tile_product(name)
     regional=research.results(name)
