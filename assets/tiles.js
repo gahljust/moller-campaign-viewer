@@ -39,7 +39,7 @@ const LocalTiles=(()=>{
    <div class="uncertaintyKey"><span><b>Projected experimental σ:</b> predicted from simulated rates and event correlations for the assumed exposure</span><span><b>MC:</b> finite simulation statistics in H</span><span><b>Combined:</b> both, added in quadrature</span></div>
    <p class="resultCaution">First-order MC propagation; fixed forecast weights. Inelastic separation remains sensitive to MC precision. Physical-model systematics are excluded.</p>
    <details><summary>Reference asymmetries & assumptions</summary>
-    <p>Relative uncertainties use the simulated Ring 5 open average for each interaction.</p>
+    <p>Relative uncertainties use the simulated average over the 21 Ring 5 Open tiles for each interaction.</p>
     ${table(['Interaction','Reference asymmetry [ppb]','MC σ [ppb]'],labels().map((label,i)=>[esc(label),esc(fmt(f.reference_asymmetry_ppb[i].value)),esc(fmt(f.reference_asymmetry_ppb[i].standard_error))]))}
     <p>Simulation forecast, not measured uncertainty. Model and detector systematics excluded.</p>
    </details>

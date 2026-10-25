@@ -143,7 +143,8 @@ def publish(site=None):
         archive = Path(temp) / 'site.tar.gz'
         checksum = pack(site, archive)
         notes = Path(temp) / 'notes.md'
-        notes.write_text(f'Frozen shared viewer website.\n\nSource: `{commit}` on `{BRANCH}`.\n\n'
+        update = verify_site(site).get('detector_selection_update', {}).get('note', '')
+        notes.write_text((update + '\n\n' if update else '') + f'Frozen shared viewer website.\n\nSource: `{commit}` on `{BRANCH}`.\n\n'
                          f'Archive SHA256: `{checksum}`.\n')
         command('gh', 'release', 'create', tag, str(archive), '--repo', REPOSITORY,
                 '--target', commit, '--title', tag, '--notes-file', str(notes))

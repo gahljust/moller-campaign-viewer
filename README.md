@@ -39,3 +39,6 @@ campaigns retain rate weighting; ShowerMax retains its existing PE response.
 The build checks the local analysis fingerprints and exports compact products
 only. `verify_response.py` checks rate/PE units, source/map/spectrum closure and
 fit identities; `node test_response.cjs` checks static response routing.
+
+Regional selections use physical detector IDs, replacing legacy angular cuts.
+ShowerMax PE lookup coordinates use the recorded module.
