@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MOLLER · Campaign analysis</title><link rel="stylesheet" href="assets/style.css?v=c533944fc224"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MOLLER · Campaign analysis</title><link rel="stylesheet" href="assets/style.css?v=e219927e8cf9"></head><body>
 <header><div class="brand">MOLLER <span>Campaign analysis</span></div></header>
 <main><span id="selectionHome" hidden></span><div id="analysisSelection" class="selection"><label>Target<select id="targetSelect"></select></label><label>Energy<select id="energySelect"></select></label><label>Interaction<select id="processSelect"></select></label><select id="run" aria-label="Saved campaign" hidden></select><span id="identity"></span></div>
-<nav aria-label="Analysis views"><button data-tab="results">Deconvolution</button><button data-tab="maps" aria-selected="true">Hit maps</button><button data-tab="analysis">Analysis</button><button data-tab="secondaries">Secondaries</button><button data-tab="transport">Particle transport</button></nav>
+<nav aria-label="Analysis views"><button data-tab="results">Deconvolution</button><button data-tab="maps" aria-selected="true">Hit maps</button><button data-tab="analysis">Analysis</button><button data-tab="secondaries">Secondaries</button><button data-tab="transport">Particle transport</button><button data-tab="changelog">Changelog</button></nav>
 <div id="notice" role="status"></div>
 
 <section id="results" class="view" hidden><div class="heading"><h1 id="resultTitle">Deconvolution</h1><p id="resultScope" class="statusline"></p></div><div class="deconvolutionVideo"><video id="deconvolutionVideo" controls preload="metadata" playsinline src="assets/deconvolution.mp4"></video></div><div id="resultBody"></div></section>
@@ -19,4 +19,19 @@
 <div id="trackLegend" class="legend"></div><div id="geometryLegend" class="legend geometryLegend"></div>
 <p id="animationSummary" class="animationSummary"></p></section>
 
-</main><script src="assets/hit-map-3d.js?v=55e6aeb9b80b"></script><script src="assets/math.js?v=fa9a5f784dff"></script><script src="assets/stream.js?v=d9a1d90b2c9c"></script><script src="assets/tiles.js?v=734cd968da0f"></script><script src="assets/analysis.js?v=16c9dfacee2c"></script><script src="assets/app.js?v=ec78409afd0d"></script></body></html>
+<section id="changelog" class="view" hidden>
+<h1>Changelog</h1>
+<table class="changelogTable"><thead><tr><th scope="col">2026</th><th scope="col">Changes</th></tr></thead><tbody>
+<tr><td><time datetime="2026-10-26">Oct 26</time></td><td>Deconvolution now uses develop Møller and ep elastic, retaining sampled ep inelastic. Updated all associated matrices and uncertainties; <strong>8.25 million events</strong> total.</td></tr>
+<tr><td><time datetime="2026-10-25">Oct 25</time></td><td>Replaced legacy angular region assignments with physical detector membership in some calculations. Corrected ShowerMax lookup coordinates and the Ring 5 Open reference selection.</td></tr>
+<tr><td><time datetime="2026-10-22">Oct 22</time></td><td>Added the <strong>Analysis</strong> page: per-tile PE histograms, primary/secondary breakdowns, mean, RMS and RMS/mean. Added unwrapped detector views and entry-surface heat maps.</td></tr>
+<tr><td><time datetime="2026-10-21">Oct 21</time></td><td>Added <strong>3D hit maps</strong>, improved camera controls, PE/cathode-current toggles, total/average controls, and separate Ring 5 Open tile placements.</td></tr>
+<tr><td><time datetime="2026-10-19">Oct 19</time></td><td>Added main-detector <strong>PE weighting</strong> across deconvolution, hit maps and secondary analysis.</td></tr>
+<tr><td><time datetime="2026-10-11">Oct 11</time></td><td>Organized matrices into tabs. Added the interactive <strong>detector correlation viewer</strong> and clearer access controls.</td></tr>
+<tr><td><time datetime="2026-10-07">Oct 7</time></td><td>Added <strong>Deconvolution</strong> with the explanatory video, dilution and covariance matrices, and uncertainty tables. Fixed stale-data loading after deployments.</td></tr>
+<tr><td><time datetime="2026-09-23">Sept 23</time></td><td>Released Hit maps, Secondaries and Particle transport. Removed ShowerMax virtual-plane selections and fixed cached menus.</td></tr>
+<tr><td><time datetime="2026-09-09">Sept 9</time></td><td>Initial GitHub Pages launch; reviewed and corrected animation geometry.</td></tr>
+</tbody></table>
+</section>
+
+</main><script src="assets/hit-map-3d.js?v=55e6aeb9b80b"></script><script src="assets/math.js?v=fa9a5f784dff"></script><script src="assets/stream.js?v=d9a1d90b2c9c"></script><script src="assets/tiles.js?v=734cd968da0f"></script><script src="assets/analysis.js?v=16c9dfacee2c"></script><script src="assets/app.js?v=f580903791df"></script></body></html>
