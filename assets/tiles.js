@@ -21,7 +21,7 @@ const LocalTiles=(()=>{
   }
   data=response;regional=saved;
   const f=data.forecast,combined=combinedCovariance(f);
-  const sampleLabel=`${Number(data.histories/1e6).toLocaleString('en-US',{maximumFractionDigits:2})} million simulated events total · Møller, ep-elastic & ep-inelastic`;
+  const sampleLabel=data.dataset?.label||`${Number(data.histories/1e6).toLocaleString('en-US',{maximumFractionDigits:2})} million simulated events total · Møller, ep-elastic & ep-inelastic`;
   resultData={...saved,individual_tiles:data,combined_forecast:{covariance_ppb2:combined,standard_error_ppb:combined.map((r,i)=>Math.sqrt(r[i])),method:'Projected experimental statistics plus independent template MC covariance; first-order propagation at the simulated reference, fixed forecast weights.'}};
   $('resultTitle').textContent='Deconvolution';
   $('resultScope').textContent=`LH2 · 11 GeV · 224 quartz tiles + 28 ShowerMax modules`;

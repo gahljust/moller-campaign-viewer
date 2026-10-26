@@ -38,6 +38,11 @@ def verify_site(site):
     manifest = json.loads((site / 'manifest.json').read_text())
     if manifest.get('schema') != 'moller_shared_viewer_v1':
         raise ValueError('Not a shared viewer build.')
+    dataset_path = HERE / 'deconvolution_dataset.json'
+    if dataset_path.exists():
+        dataset = json.loads(dataset_path.read_text())['dataset']
+        if manifest.get('deconvolution_dataset') != dataset:
+            raise ValueError('Apply the verified deconvolution dataset update before publishing.')
     expected = {'index.html', 'manifest.json', '.nojekyll'}
     expected.update('assets/' + p.name for p in (HERE / 'assets').iterdir() if p.name != 'index.html')
     products = {}
@@ -143,7 +148,8 @@ def publish(site=None):
         archive = Path(temp) / 'site.tar.gz'
         checksum = pack(site, archive)
         notes = Path(temp) / 'notes.md'
-        update = verify_site(site).get('detector_selection_update', {}).get('note', '')
+        metadata = verify_site(site)
+        update = metadata.get('deconvolution_dataset', metadata.get('detector_selection_update', {})).get('note', '')
         notes.write_text((update + '\n\n' if update else '') + f'Frozen shared viewer website.\n\nSource: `{commit}` on `{BRANCH}`.\n\n'
                          f'Archive SHA256: `{checksum}`.\n')
         command('gh', 'release', 'create', tag, str(archive), '--repo', REPOSITORY,

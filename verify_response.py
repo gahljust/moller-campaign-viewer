@@ -33,7 +33,10 @@ def verify(site):
     checks=0
     for mode in ('0','2'):
         fit=load('deconvolution',response=mode)['tiles']
-        if fit['response_mode']!=mode or fit['histories']!=info['histories']:raise ValueError('Fit response identity mismatch')
+        dataset=manifest.get('deconvolution_dataset')
+        expected_histories=dataset['histories'] if dataset else info['histories']
+        if fit['response_mode']!=mode or fit['histories']!=expected_histories:raise ValueError('Fit response identity mismatch')
+        if dataset and fit.get('dataset')!=dataset:raise ValueError('Fit dataset identity mismatch')
         if [v['id'] for v in fit['response_options']]!=['0','2']:raise ValueError('Unexpected response choices')
         for name in info['runs']:
             for plane in ['main_detector',*[f'ring{i}' for i in range(1,7)]]:

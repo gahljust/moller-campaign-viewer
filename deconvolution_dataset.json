@@ -1,0 +1,29 @@
+{
+  "dataset": {
+    "id": "develop_moller_elastic_sampled_inelastic_20261026",
+    "histories": 8250000,
+    "label": "8.25 million events \u00b7 develop M\u00f8ller + ep elastic \u00b7 sampled ep inelastic",
+    "processes": [
+      {
+        "component": "moller",
+        "source": "develop without trigger scintillators",
+        "histories": 2700000
+      },
+      {
+        "component": "ep_elastic",
+        "source": "develop without trigger scintillators",
+        "histories": 3000000
+      },
+      {
+        "component": "ep_inelastic",
+        "source": "sampled campaign",
+        "histories": 2550000
+      }
+    ],
+    "results_sha256": "ad5dc4bd4756549fd37da04c4aa86974d49907bd58a067b9e724c66263a31e60",
+    "verification_sha256": "9f3898039add154b81b0bc0c7e87732b59269f732e88990c0b241f130d2edaa9",
+    "analysis_contract_sha256": "4e410e78523acb122347c22c04b8c445f2b9871d34e96316ae5e26c8d24b5594",
+    "note": "Replace sampled M\u00f8ller and ep elastic with the verified develop runs; retain sampled ep inelastic. Current detector cuts and response definitions unchanged. M\u00f8ller combined uncertainty: 2.24170% to 2.22943%."
+  },
+  "payload_sha256": "fb72b76399d0dd8ea1551c5c68c24badb5f03e35b605e2605c16518309d5e09c"
+}
