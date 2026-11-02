@@ -43,6 +43,11 @@ fit identities; `node test_response.cjs` checks static response routing.
 Regional selections use physical detector IDs, replacing legacy angular cuts.
 ShowerMax PE lookup coordinates use the recorded module.
 
+November 2 correction: main PE lookup uses total energy; kinetic-energy cuts
+are unchanged. PE maps, spectra and deconvolution were reprocessed. Forecasts
+remain conditional on finite simulation templates and expected PE, excluding
+additional optical/electronics variance. The Changelog records the correction.
+
 For the current deconvolution release, apply `update_deconvolution.py` to the
 prepared baseline export with the verified payload before publishing. Its
 hash and dataset identity are pinned in `deconvolution_dataset.json`; publishing

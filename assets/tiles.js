@@ -37,7 +37,7 @@ const LocalTiles=(()=>{
    <div id="uncertaintyTable"></div><div id="mcExplanation" class="resultMeta"></div>
    <details><summary>Extracted-asymmetry covariance · ppb²</summary><label>Contribution<select id="fitCovariance"><option value="combined">Combined</option><option value="counting">Projected experimental statistics</option><option value="mc">Simulation MC</option></select></label><div id="fitCovarianceTable"></div></details>
    <div class="uncertaintyKey"><span><b>Projected experimental σ:</b> predicted from simulated rates and event correlations for the assumed exposure</span><span><b>MC:</b> finite simulation statistics in H</span><span><b>Combined:</b> both, added in quadrature</span></div>
-   <p class="resultCaution">First-order MC propagation; fixed forecast weights. Inelastic separation remains sensitive to MC precision. Physical-model systematics are excluded.</p>
+   <p class="resultCaution">Conditional forecast: finite simulation statistics can make these errors optimistic. Expected PE only; additional optical and electronics fluctuations and model systematics are excluded.</p>
    <details><summary>Reference asymmetries & assumptions</summary>
     <p>Relative uncertainties use the simulated average over the 21 Ring 5 Open tiles for each interaction.</p>
     ${table(['Interaction','Reference asymmetry [ppb]','MC σ [ppb]'],labels().map((label,i)=>[esc(label),esc(fmt(f.reference_asymmetry_ppb[i].value)),esc(fmt(f.reference_asymmetry_ppb[i].standard_error))]))}
