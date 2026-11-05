@@ -35,7 +35,7 @@ const LocalTiles=(()=>{
    <p class="resultMeta">Assumed exposure · ${f.beam_days} beam days · ${100*f.polarization}% polarization · ${f.current_uA} µA</p>
    <p class="resultMeta">Projected statistical covariance = M⁻¹ · σ = √(diagonal of M⁻¹)</p>
    <div id="uncertaintyTable"></div><div id="mcExplanation" class="resultMeta"></div>
-   <details><summary>Extracted-asymmetry covariance · ppb²</summary><label>Contribution<select id="fitCovariance"><option value="combined">Combined</option><option value="counting">Projected experimental statistics</option><option value="mc">Simulation MC</option></select></label><div id="fitCovarianceTable"></div></details>
+   <details><summary>Extracted-asymmetry covariance · ppb²</summary><label>Contribution<select id="fitCovariance"><option value="combined">Combined</option><option value="counting">Projected experimental statistics</option><option value="mc">Propagated MC error</option></select></label><div id="fitCovarianceTable"></div></details>
    <div class="uncertaintyKey"><span><b>Projected experimental σ:</b> predicted from simulated rates and event correlations for the assumed exposure</span><span><b>MC:</b> finite simulation statistics in H</span><span><b>Combined:</b> both, added in quadrature</span></div>
    <p class="resultCaution">Conditional forecast: finite simulation statistics can make these errors optimistic. Expected PE only; additional optical and electronics fluctuations and model systematics are excluded.</p>
    <details><summary>Reference asymmetries & assumptions</summary>
@@ -104,7 +104,7 @@ const LocalTiles=(()=>{
  }
  function drawUncertainties(){
   const f=data.forecast,relative=uncertaintyUnit==='percent',unit=relative?'%':'ppb';
-  $('uncertaintyTable').innerHTML=table(['Interaction',`Projected experimental σ [${unit}]`,`Simulation MC σ [${unit}]`,`Combined σ [${unit}]`],labels().map((label,i)=>{
+  $('uncertaintyTable').innerHTML=table(['Interaction',`Projected experimental σ [${unit}]`,`Propagated MC error [${unit}]`,`Combined σ [${unit}]`],labels().map((label,i)=>{
    const scale=relative?100/Math.abs(f.reference_asymmetry_ppb[i].value):1;
    const a=f.covariance_ppb2[i][i],b=f.template_mc_covariance_ppb2[i][i];
    return [esc(label),... [a,b,a+b].map((v,j)=>{const text=relative?(Math.sqrt(v)*scale).toFixed(2):fmt(Math.sqrt(v),4);return j===2?`<strong>${text}</strong>`:text})];

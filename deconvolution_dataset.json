@@ -1,13 +1,13 @@
 {
   "dataset": {
-    "id": "develop_moller_elastic_sampled_inelastic_total_energy_20261102",
-    "histories": 8250000,
-    "label": "8.25 million events \u00b7 develop M\u00f8ller + ep elastic \u00b7 sampled ep inelastic",
+    "id": "develop_moller_elastic_sampled_inelastic_complete_9M_20261104",
+    "histories": 9000000,
+    "label": "9 million events \u00b7 develop M\u00f8ller + ep elastic \u00b7 sampled ep inelastic",
     "processes": [
       {
         "component": "moller",
         "source": "develop without trigger scintillators",
-        "histories": 2700000
+        "histories": 3000000
       },
       {
         "component": "ep_elastic",
@@ -17,16 +17,17 @@
       {
         "component": "ep_inelastic",
         "source": "sampled campaign",
-        "histories": 2550000
+        "histories": 3000000
       }
     ],
-    "results_sha256": "737ea80c4bd9002b83f8243213917a6981ebfa33c7b921618198242b9053e4a7",
-    "analysis_contract_sha256": "72e603ccf1f9d6d79632a13babd9df6c6e725f9b8e96dae6d21640a8fa8ce9d8",
-    "note": "Corrected main quartz PE energy lookup to use total energy; rebuilt affected maps, distributions, dilution and deconvolution. Same events and cuts. Removed roundoff-only zero-variance failures; clarified conditional uncertainty limits.",
+    "results_sha256": "30d1b1c69e764cf613528c05517ee6f5a8f992c80e15b6a712f9176ed68cf4ae",
+    "analysis_contract_sha256": "bb69e9e432900cfb236089c27a6224d87174a73c6864b63c6c0fb3d2a2a7e819",
+    "note": "Added the missing 750,000 events: 300,000 M\u00f8ller and 450,000 ep inelastic. Deconvolution now uses 9 million events, 3 million per interaction. Updated dilutions, correlations, covariance, deconvolution and propagated MC errors; unchanged cuts, response models and exposure. Other viewer datasets unchanged.",
     "limitations": [
       "Finite MC may make conditional fit errors optimistic; nominal coverage is not established for this dataset",
       "Expected PE only; additional optical and electronics fluctuations are not included"
-    ]
+    ],
+    "verification_sha256": "a852a5e5eb6fc75d9b219fed3d41142a3d69f258118d8daaa10154c3b1ca2378"
   },
-  "payload_sha256": "3ae10bbdfc1bd010cbdb92b726d0d2dd8f76ba3cd19aa1aca9eb5b781ef4127a"
+  "payload_sha256": "847be92d2b62a59e636c8971344412570a6c2a737a57bbbd1e03a9c6905a39f0"
 }
