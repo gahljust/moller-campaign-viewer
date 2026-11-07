@@ -1,0 +1,243 @@
+/* Editorial shell. Table cells, heat maps and numerical presentation retain
+   their existing rules; white table surfaces preserve their original context. */
+body{background:#fbfaf7}
+table{background:#fff}
+#siteHeader{background:#fbfaf7;border-bottom:1px solid #dfdfda;gap:30px;padding:0 40px;min-height:82px}
+#siteHeader .brand{font-family:Georgia,serif;font-size:23px;font-weight:400;letter-spacing:.02em}
+#siteHeader .brand span{font:11px/1.3 Calibri,Carlito,system-ui,sans-serif;letter-spacing:.05em;margin-top:5px}
+#siteNav{gap:25px}
+#siteNav button{background:transparent;font-size:13px;padding:25px 0 22px}
+#siteHeader .previewControls{position:absolute;right:12px;top:3px;gap:6px}
+#siteHeader .previewTag{font-size:9px}
+#siteHeader .previewControls button{font-size:9px;padding:0 5px;border-color:#dfdfda}
+body:has(#siteHeader)>main{padding-top:26px}
+#deconToolbar{display:flex;align-items:flex-start;gap:28px;margin:0;padding:0 0 20px;border-bottom:1px solid #e1e1d9;flex-wrap:wrap}
+#deconToolbar .datasetChoice{grid-column:1;grid-row:1;display:grid;grid-template-columns:repeat(3,max-content);gap:3px;align-self:start;padding:0;margin:0;background:linear-gradient(#efeee8,#efeee8) bottom/100% 40px no-repeat;border-radius:7px}
+#deconToolbar .datasetChoice>span{grid-column:1/-1;margin:0 0 5px;font-size:10px;letter-spacing:.11em;font-weight:600;color:#687486}
+#deconToolbar .datasetChoice button{background:transparent;border-color:transparent;font-size:12px;padding:8px 12px;margin-bottom:3px}
+#deconToolbar .datasetChoice button:first-of-type{margin-left:3px}
+#deconToolbar .datasetChoice button:last-of-type{margin-right:3px}
+#deconToolbar .datasetChoice button[aria-pressed=true]{background:#077d9e;color:white}
+#deconToolbar .datasetChoice small:empty{display:none}
+#deconControls{flex:0 1 auto}
+#deconToolbar .responseChoice .heading{gap:28px;align-items:flex-start;flex-wrap:wrap}
+#deconToolbar .responseChoice label{display:flex;flex-direction:column;align-items:flex-start;gap:7px;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#687486}
+#deconToolbar .responseChoice select{font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;padding:8px 30px 8px 11px;min-height:37px;background:transparent;border-color:#d8dcd9;min-width:174px}
+#deconToolbar .responseChoice p{font-size:10px;color:#79818c;margin:6px 0 0;text-align:right}
+#results .deconContext{flex:1 1 200px;max-width:310px;margin-left:auto;align-self:center;border-left:1px solid #dcded7;padding-left:24px}
+#results .deconContext #resultScope{font-size:11px;line-height:1.7;font-weight:600}
+#results .matrixTabs{border-top:1px solid #23344a;border-bottom:1px solid #d9ddd9;gap:27px;margin:0 0 22px}
+#results .matrixTabs button{font-size:13px;padding:13px 0;background:transparent}
+#results .matrixTabs button[aria-selected=true]{border-bottom-width:2px}
+#results .matrixPanel{border-top:0;margin-top:0;padding-top:0}
+.editorialResultHeading{display:flex;justify-content:space-between;align-items:center;gap:24px;margin:0 0 14px}
+.editorialResultHeading h2{font:400 26px/1.3 Georgia,serif}
+.editorialResultHeading .resultMeta{font-size:11px;margin:6px 0 0;color:#798391}
+.editorialResultHeading .deconvolutionEquation{display:flex;flex-direction:column;align-items:flex-end;gap:4px;background:transparent;padding:0;margin:0;font:26px/1.3 Georgia,serif}
+.editorialResultHeading .deconvolutionEquation span+span{font:11px/1.4 Calibri,Carlito,system-ui,sans-serif;color:#798391}
+#detectorExplorer{border-top:1px solid #d9ddd9;padding-top:22px;margin-top:30px}
+.comparisonPanel #deconToolbar{border:0;padding-bottom:12px}
+.comparisonPanel .editorialResultHeading{align-items:flex-start;gap:12px;flex-wrap:wrap}
+.comparisonPanel .editorialResultHeading h2{font-size:22px}
+.comparisonPanel #results .matrixTabs{display:grid;gap:4px}
+.comparisonPanel #results .matrixTabs button{font-size:11px;padding:7px 5px}
+/* Match the reference's four aligned control groups. Optional explanations
+   belong in control tooltips and must not add toolbar height. */
+#siteHeader{flex-wrap:nowrap;gap:32px;padding:22px 40px 0;min-height:0}
+#siteNav{flex-basis:auto;order:0;gap:clamp(14px,1.8vw,26px)}
+#siteNav button{font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:16px 0 20px}
+#siteHeader .brand{text-transform:uppercase}
+#siteHeader .brand span{text-transform:none;font:10px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body:has(#siteHeader)>main{padding:26px 40px 40px}
+#deconToolbar{display:grid;grid-template-columns:max-content 428px minmax(250px,1fr);column-gap:18px;row-gap:4px;align-items:start;padding-bottom:12px}
+#deconToolbar:has(#deconControls:empty){grid-template-columns:max-content minmax(0,1fr)}
+#deconControls{display:block;min-width:0}
+#deconToolbar .responseChoice{margin:0;padding:0}
+#deconToolbar .responseChoice .heading{display:grid;grid-template-columns:1fr 1.1fr 1.2fr;gap:9px;margin:0}
+#deconToolbar .responseChoice label{display:flex;min-width:0;white-space:normal;font:650 10px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.11em;gap:7px}
+#deconToolbar .responseChoice select{width:100%;min-width:0;min-height:35px;font:11px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:7px 8px}
+#deconToolbar .datasetChoice{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background-size:100% 39px;gap:3px}
+#deconToolbar .datasetChoice>span{line-height:1.45;margin:0 0 4px}
+#deconToolbar .datasetChoice button{font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:7px 10px}
+#results .deconContext{grid-column:3;grid-row:1;width:100%;min-width:0;max-width:300px;justify-self:end;margin:0;align-self:center;padding:0;border:0;flex:none;box-sizing:border-box}
+#results #deconToolbar:has(#deconControls:empty) .deconContext{grid-column:2;max-width:300px}
+#results .deconFootnotes{grid-column:1/-1;grid-row:2;display:flex;align-items:baseline;gap:16px;min-height:12px}
+#results .deconFootnotes #resultScope,#results .deconFootnotes small{margin:0;color:#687486;font:9px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#results .deconFootnotes small{font-size:8px}
+#results .deconFootnotes small:empty{display:none}
+.comparisonPanel #results .deconFootnotes{display:none}
+#resultScope span{display:inline;font-weight:400}
+#resultScope span:before{content:' · '}
+#resultScope b{font-weight:600}
+/* Quiet utility links share the control row; no callout or icon treatment. */
+#results .deconContext .deconIntro{display:grid;gap:4px;margin:0;text-align:right;color:#687486;font:9px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#results .deconIntro a{display:inline;font:9px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#077d9e;white-space:nowrap;text-decoration:underline;text-decoration-color:#077d9e55;text-underline-offset:2px}
+#results .deconIntro a:hover{text-decoration-color:currentColor}
+#results #deconToolbar:has(#deconControls:empty) .datasetChoice{grid-column:1;grid-row:1}
+#results .matrixTabs{gap:25px}
+#results .matrixTabs button{font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:13px 0}
+#results .matrixTabs button[aria-selected=true]{font-weight:650}
+@media(max-width:1100px){
+ #siteHeader{padding:18px 24px 0;gap:22px}
+ #siteNav{gap:16px}
+ #siteNav button{font-size:11px}
+ body:has(#siteHeader)>main{padding:22px 24px 40px}
+ #deconToolbar{column-gap:12px;grid-template-columns:max-content 362px minmax(200px,1fr)}
+ #deconToolbar .datasetChoice button{font-size:11px;padding:8px}
+ #deconToolbar .responseChoice select{font-size:10px;padding-left:7px}
+ #results .deconContext{padding-left:0}
+ #results .matrixTabs{gap:20px}
+}
+@media(max-width:850px){
+ #siteHeader{flex-wrap:wrap;gap:0 24px}
+ #siteNav{flex-basis:100%;order:3}
+ #siteNav button{padding:12px 0 9px}
+ #deconToolbar{grid-template-columns:1fr 1fr;gap:16px 20px}
+ #deconToolbar .datasetChoice{grid-column:1/-1;justify-self:start}
+ #deconControls{grid-column:1/-1}
+ #results .deconContext{grid-column:1/-1;grid-row:auto;max-width:none;border:0;padding:0;text-align:left}
+ #results .deconFootnotes{grid-row:auto;flex-wrap:wrap;gap:2px 16px}
+ #results #deconToolbar:has(#deconControls:empty) .deconContext{grid-column:2;grid-row:1}
+ #resultScope span{display:inline;margin-left:8px}
+}
+@media(max-width:650px){
+ #siteHeader{padding-left:18px;padding-right:18px}
+ body:has(#siteHeader)>main{padding:18px}
+ #deconToolbar:has(#deconControls:empty){grid-template-columns:minmax(0,1fr)}
+ #results #deconToolbar:has(#deconControls:empty) .deconContext{grid-column:1;grid-row:auto;max-width:none}
+ .editorialResultHeading{flex-wrap:wrap;gap:14px}
+ .editorialResultHeading .deconvolutionEquation{align-items:flex-start}
+ .editorialResultHeading h2{font-size:23px}
+}
+
+/* One complete correlation workspace per viewport, including its readouts. */
+#detectorExplorer{padding-top:0;border-top:0;scroll-margin-top:calc(var(--site-header-height,82px) + 12px)}
+#detectorExplorer .detectorCorrelationsFrame{height:calc(100dvh - var(--site-header-height,82px) - 24px);min-height:0;margin:0}
+
+
+/* Each matrix tab is one viewport-sized workspace, with compact support text. */
+.matrixWorkspace{height:calc(100dvh - var(--site-header-height,82px) - 24px);display:flex;flex-direction:column;min-height:0;scroll-margin-top:calc(var(--site-header-height,82px) + 12px)}
+#results .matrixWorkspace>.matrixTabs{flex:none;margin:0 0 12px}
+#results .matrixWorkspace>.matrixTabs button{padding:9px 0}
+#results .matrixWorkspace>.matrixPanel{flex:1;min-height:0;margin:0;padding:0;display:flex;flex-direction:column}
+.matrixWorkspace .heading{flex:none;display:flex;flex-direction:row;align-items:center;gap:12px;margin:0 0 6px}
+.matrixWorkspace h2,.matrixWorkspace .editorialResultHeading h2{font-size:20px;line-height:1.25;margin:0}
+.matrixWorkspace label{flex-direction:row;align-items:center;font-size:10px;gap:6px}
+.matrixWorkspace select{padding:3px 6px;font-size:11px}
+.matrixWorkspace .editorialResultHeading{margin:0 0 6px;gap:16px;flex:none}
+.matrixWorkspace .editorialResultHeading .deconvolutionEquation{font-size:22px}
+.matrixWorkspace .editorialResultHeading .deconvolutionEquation span+span{font-size:10px}
+.matrixWorkspace .resultMeta,.matrixWorkspace .matrixFormula{font-size:11px;line-height:1.35;margin:4px 0 8px;flex:none}
+.matrixWorkspace .matrixFormula{font-size:14px;margin:0 0 3px}
+.matrixWorkspace table{font-size:12px;margin:6px 0 8px}
+.matrixWorkspace th,.matrixWorkspace td{padding:6px 9px;line-height:1.35}
+.matrixWorkspace th{white-space:normal}
+.matrixWorkspace .uncertaintyLead td strong{font-size:15px}
+.matrixWorkspace .uncertaintyLead table{font-size:13px}
+.matrixWorkspace #mcExplanation{display:flex;justify-content:space-between;gap:6px 20px;flex-wrap:wrap;font-size:10px;margin:5px 0}
+.matrixWorkspace .resultCaution{border:0;padding:0;font-size:10px;line-height:1.3;margin:4px 0;color:#687482}
+.matrixWorkspace .matrixTable{flex:1;min-height:0;display:flex;flex-direction:column}
+.matrixWorkspace .matrixTable .scroll{flex:1;min-height:0;max-height:none;overflow:auto}
+.matrixWorkspace .matrixTable table{font-size:11px;table-layout:fixed;margin:0}
+.matrixWorkspace .matrixTable td,.matrixWorkspace .matrixTable th{padding:6px 8px;line-height:16px;white-space:nowrap;min-width:0}
+.matrixWorkspace .matrixTable th{white-space:normal}
+.matrixWorkspace .matrixTable td:first-child,.matrixWorkspace .matrixTable th:first-child{width:29%;min-width:0}
+.matrixWorkspace .covarianceExplorer{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:20px;align-items:stretch}
+.matrixGraphic{min-height:0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.matrixGraphic canvas{flex:none;max-width:100%;display:block}
+.matrixWorkspace .matrixLegend{font-size:10px;line-height:1.3;flex:none;margin:0;gap:8px}
+.matrixWorkspace .correlationRamp,.matrixWorkspace .covarianceRamp{width:110px;height:8px}
+.matrixWorkspace .matrixReadout{align-self:center;padding:6px 12px}
+.matrixWorkspace .matrixReadout h3{font-size:14px;margin:0 0 10px}
+.matrixWorkspace .matrixReadout p{font-size:11px;margin:0 0 8px}
+.matrixWorkspace .matrixReadout dl{margin:10px 0 0}
+.matrixWorkspace .matrixReadout dt{font-size:10px}
+.matrixWorkspace .matrixReadout dd{font-size:17px;margin:0 0 10px}
+@media(max-height:600px){
+ #results .matrixWorkspace>.matrixTabs{margin-bottom:8px}
+ #results .matrixWorkspace>.matrixTabs button{padding:6px 0;font-size:11px}
+ .matrixWorkspace h2,.matrixWorkspace .editorialResultHeading h2{font-size:18px}
+ .matrixWorkspace .editorialResultHeading .deconvolutionEquation{font-size:19px}
+ .matrixWorkspace .resultMeta{font-size:10px;margin:3px 0 5px}
+ .matrixWorkspace th,.matrixWorkspace td{padding:5px 8px}
+ .matrixWorkspace .uncertaintyLead table{font-size:12px}
+}
+@media(max-width:650px){
+ .matrixWorkspace .covarianceExplorer{grid-template-columns:minmax(0,1fr) 135px;gap:8px}
+ .matrixWorkspace .matrixReadout{padding:4px 8px}
+ .matrixWorkspace .matrixTable table{font-size:9px}
+ .matrixWorkspace .matrixTable td,.matrixWorkspace .matrixTable th{padding:6px 3px}
+ .matrixWorkspace .matrixTable td:first-child,.matrixWorkspace .matrixTable th:first-child{width:32%}
+}
+/* Comparison frames share the parent's finite viewport budget. */
+.datasetCompare iframe{height:calc(100dvh - var(--site-header-height,82px) - 62px)!important;min-height:0}
+.comparisonPanel #detectorExplorer{display:none}
+.comparisonPanel #deconToolbar{grid-template-columns:1fr;gap:12px;padding-bottom:8px}
+.comparisonPanel #deconToolbar .responseChoice select{font-size:10px;padding:4px;min-height:26px}
+.comparisonPanel .matrixWorkspace{height:calc(100dvh - 52px)}
+.comparisonPanel #results .matrixWorkspace>.matrixTabs{gap:2px;margin-bottom:6px}
+.comparisonPanel #results .matrixWorkspace>.matrixTabs button{padding:4px;font-size:10px}
+.comparisonPanel .matrixWorkspace h2{font-size:16px}
+.comparisonPanel .matrixWorkspace .matrixReadout{padding:4px 8px}
+.comparisonPanel .matrixWorkspace .covarianceExplorer{grid-template-columns:minmax(0,1fr) 130px;gap:8px}
+
+.datasetCompare{scroll-margin-top:calc(var(--site-header-height,82px) + 12px)}
+.datasetCompare>section>h2{font-size:16px;padding:8px 12px}
+.comparisonPanel .matrixWorkspace .editorialResultHeading{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
+.comparisonPanel .matrixWorkspace .editorialResultHeading h2{font-size:15px}
+.comparisonPanel .matrixWorkspace .editorialResultHeading .deconvolutionEquation{font-size:15px;gap:2px}
+.comparisonPanel .matrixWorkspace .editorialResultHeading .deconvolutionEquation span+span{font-size:8px;white-space:normal;text-align:right}
+@media(max-height:500px){
+ .comparisonPanel .matrixWorkspace{height:calc(100dvh - 48px)}
+ .comparisonPanel #deconToolbar .responseChoice label{font-size:8px;gap:3px}
+ .comparisonPanel #deconToolbar .responseChoice select{font-size:9px;min-height:22px;padding:2px 4px}
+ .comparisonPanel #results .matrixWorkspace>.matrixTabs button{font-size:8px;line-height:1.2;padding:3px}
+ .comparisonPanel .matrixWorkspace h2{font-size:14px}
+ .comparisonPanel .matrixWorkspace .heading{margin-bottom:3px}
+ .comparisonPanel .matrixWorkspace .resultMeta{font-size:8px;line-height:1.2;margin:2px 0 4px}
+ .comparisonPanel .matrixWorkspace table,.comparisonPanel .matrixWorkspace .uncertaintyLead table{font-size:9px;margin:3px 0}
+ .comparisonPanel .matrixWorkspace th,.comparisonPanel .matrixWorkspace td{padding:3px 4px;line-height:1.2}
+ .comparisonPanel .matrixWorkspace .uncertaintyLead td strong{font-size:11px}
+ .comparisonPanel .matrixWorkspace #mcExplanation,.comparisonPanel .matrixWorkspace .resultCaution{font-size:8px;line-height:1.2;margin:2px 0}
+ .comparisonPanel .matrixWorkspace #mcExplanation{gap:2px 8px}
+}
+
+.datasetCompare{grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}
+.comparisonPanel .matrixWorkspace{height:calc(100dvh - 36px)}
+.comparisonPanel .matrixWorkspace .resultCaution{font-size:8px;line-height:1.15}
+
+@media(max-height:500px){
+ .comparisonPanel .matrixWorkspace th,.comparisonPanel .matrixWorkspace td{padding-top:2px;padding-bottom:2px}
+ .comparisonPanel .matrixWorkspace label select{font-size:9px;padding:2px 4px}
+ .comparisonPanel .matrixWorkspace .heading{gap:6px}
+ .comparisonPanel .matrixWorkspace #mcExplanation{font-size:7.5px;gap:2px 5px}
+}
+
+/* Long numerical tables scroll; paired datasets keep every value inside its cell. */
+.matrixWorkspace .matrixTable{max-height:none;overflow:hidden}
+.matrixWorkspace .matrixTable table{width:100%;min-width:0}
+.matrixWorkspace .matrixTable th{position:sticky;top:0;z-index:1}
+.comparisonPanel .matrixWorkspace .matrixTable td{white-space:normal;overflow-wrap:anywhere}
+.comparisonPanel .matrixWorkspace .matrixTable th{overflow-wrap:anywhere}
+.comparisonPanel .dilutionValue,.comparisonPanel .dilutionError{display:block;white-space:nowrap}
+.comparisonPanel .dilutionError{font-size:.88em;color:#667284}
+.comparisonPanel .matrixWorkspace .matrixTable td:first-child,
+.comparisonPanel .matrixWorkspace .matrixTable th:first-child{width:25%}
+.comparisonPanel .matrixWorkspace .matrixTable td,
+.comparisonPanel .matrixWorkspace .matrixTable th{padding:5px 4px}
+.comparisonPanel .matrixWorkspace .matrixTable table{font-size:10px}
+.comparisonPanel .matrixWorkspace .scroll{min-width:0}
+.comparisonPanel .matrixWorkspace table{width:100%;min-width:0}
+.comparisonPanel .matrixWorkspace td,.comparisonPanel .matrixWorkspace th{min-width:0}
+/* Each complete correlation workspace has its own dataset and shares one row. */
+.correlationCompare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.correlationCompare>section{min-width:0;border:1px solid #dce3eb;border-radius:8px;overflow:hidden}
+.correlationCompare>section>h2{font-size:16px;padding:8px 12px;margin:0;background:#f3f6f8;border-bottom:3px solid #077d9e}
+.correlationCompare>section:nth-child(2)>h2{border-color:#e88236}
+.correlationCompare>section>iframe{display:block;width:100%;height:calc(100dvh - var(--site-header-height,82px) - 62px);border:0}
+.comparisonPanel.correlationsPanel,.correlationsPanel body{height:100%!important;overflow:hidden}
+.correlationsPanel main{padding:0!important;height:100%}
+.correlationsPanel #results,.correlationsPanel #resultBody{height:100%;margin:0;padding:0}
+.correlationsPanel #deconToolbar,.correlationsPanel .deconIntro,.correlationsPanel .matrixWorkspace{display:none!important}
+.comparisonPanel.correlationsPanel #detectorExplorer{display:block;height:100%;margin:0;padding:0}
+.correlationsPanel #detectorExplorer .detectorCorrelationsFrame{height:100%;border:0;border-radius:0}

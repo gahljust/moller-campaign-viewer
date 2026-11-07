@@ -1,0 +1,185 @@
+/* Shared editorial workspaces: controls first, visual space takes the remainder. */
+body:has(#siteHeader)>main{padding-top:16px}
+:is(#maps,#secondaries) .workspaceHeading{margin:0 0 12px;min-height:36px;gap:12px}
+:is(#maps,#secondaries) .workspaceHeading h1,#statistics>.heading,#transport>.heading,#overview>.heading,#changelog>h1{display:none}
+#datasetChoice{gap:3px;margin:0;align-items:center;background:#efeee8;border-radius:7px;padding:3px;width:max-content;max-width:100%}
+#datasetChoice>span{font:600 9px/1.4 system-ui;letter-spacing:.1em;padding:0 8px;color:#687486}
+#datasetChoice button{border-color:transparent;background:transparent;font:12px/1.4 system-ui;padding:6px 10px;margin:0}
+#datasetChoice button[aria-pressed=true]{background:#077d9e;color:#fff}
+#datasetDetails{font-size:10px;margin:0 8px;max-width:280px}
+#deconToolbar #datasetChoice{width:auto}
+:is(#maps,#secondaries) .entryLabel{font:600 10px/1.4 system-ui;border:0;padding:0;color:#687486;margin-left:auto;white-space:nowrap}
+:is(#maps,#secondaries) .workspaceFilters{display:grid;grid-template-columns:.65fr .65fr 1.25fr 1.15fr .85fr 1.2fr;gap:16px;padding:0 0 12px;margin:0 0 9px;border:0;border-bottom:1px solid #d9ddd9;border-radius:0;background:none}
+:is(#mapsCampaign,#secondaryCampaign),:is(#mapsCampaign,#secondaryCampaign) .selection{display:contents}
+:is(#maps,#secondaries) .workspaceFilters>label:last-child,:is(#mapsCampaign,#secondaryCampaign) label:has(#processSelect){grid-column:auto}
+:is(#maps,#secondaries) .workspaceFilters label,.transportControls label{font:600 9px/1.4 system-ui;letter-spacing:.09em;text-transform:uppercase;gap:5px;min-width:0}
+:is(#maps,#secondaries) .workspaceFilters select,.transportControls select{font:12px/1.4 system-ui;text-transform:none;letter-spacing:0;font-weight:400;padding:6px 8px;height:32px;min-width:0;max-width:100%;background:transparent;border-color:#d8dcd9}
+:is(#maps,#secondaries) .regionChecks{gap:5px;margin:0 0 10px}
+.regionChecks label{font:10px/1.3 system-ui;padding:4px 8px}
+.regionChecks legend{font:10px/1.3 system-ui}
+#secondaries .secondaryScopeControls{margin:0 0 10px;gap:8px;align-items:center}
+#secondaries .secondaryContext{gap:12px}
+#secondaries .secondaryContext label{font:10px/1.3 system-ui;gap:6px}
+#secondaries .secondaryContext select{font-size:10px;padding:3px 6px;max-width:210px}
+:is(#maps,#secondaries) .detectorWorkspace{height:var(--workspace-height,560px);min-height:0;gap:18px;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:stretch}
+:is(#maps,#secondaries) .workspaceMap,:is(#maps,#secondaries) .workspaceInspector{min-height:0;display:flex;flex-direction:column;padding:0}
+:is(#maps,#secondaries) .mapColorControls{min-height:0;padding:5px 8px;flex:none;flex-wrap:nowrap}
+:is(#maps,#secondaries) .mapColorControls>span{font-size:10px}
+:is(#maps,#secondaries) .mapColorControls .segmented button{font-size:10px;padding:3px 7px}
+:is(#maps,#secondaries) .surfaceMap{min-height:0;display:flex;flex-direction:column;flex:1}
+:is(#maps,#secondaries) .workspaceCameraBar{flex:none;padding:3px 5px;gap:3px}
+:is(#maps,#secondaries) .surfaceToolbar{padding:2px 0;gap:5px}
+:is(#maps,#secondaries) .surfaceToolbar button{font-size:9px;padding:3px 5px}
+:is(#maps,#secondaries) .surfaceNavigation{padding:2px 0}
+:is(#maps,#secondaries) .surfaceNavigation button{font-size:9px;padding:3px 5px}
+:is(#maps,#secondaries) .surfaceStage{height:auto;min-height:0;flex:1}
+:is(#maps,#secondaries) .surfaceLegend{width:170px;left:12px;bottom:12px;font-size:10px}
+:is(#maps,#secondaries) .surfaceHelp{font-size:9px;bottom:12px}
+:is(#maps,#secondaries) .workspaceMapFooter{padding:5px 9px;flex:none;gap:8px}
+:is(#maps,#secondaries) :is(#mapScope,#secondaryMapScope){font-size:10px;min-height:0}
+:is(#maps,#secondaries) :is(#mapScope,#secondaryMapScope) strong{font-size:12px}
+:is(#maps,#secondaries) .workspaceSignalUnits button{font-size:10px;padding:3px 6px;white-space:nowrap}
+:is(#maps,#secondaries) .inspectorTabs{gap:20px;padding:0 12px;flex:none;background:#fbfaf7}
+:is(#maps,#secondaries) .inspectorTabs>button{font:600 11px/1.4 system-ui;padding:9px 0 7px;border-bottom-width:2px}
+:is(#maps,#secondaries) .workspaceInspector>section{min-height:0;flex:1;overflow:auto}
+:is(#maps,#secondaries) #workspaceRegions,:is(#maps,#secondaries) #workspaceTilePanel,#secondaries #secondarySourcesPanel,#secondaries #secondaryEnergyPanel{padding:10px 12px}
+:is(#maps,#secondaries) #regionTable h2{font:400 18px/1.2 Georgia,serif}
+:is(#maps,#secondaries) #regionTable .regionUnits{font-size:10px;margin:0 0 8px}
+:is(#maps,#secondaries) #regionTable .regionHeading{margin-bottom:4px}
+:is(#maps,#secondaries) #regionTable table{font-size:12px;table-layout:fixed;min-width:0}
+:is(#maps,#secondaries) #regionTable th{font-size:10px;padding:6px;white-space:normal}
+:is(#maps,#secondaries) #regionTable td{padding:7px 6px;min-width:0;white-space:normal}
+:is(#maps,#secondaries) #regionTable td strong{font-size:13px}
+:is(#maps,#secondaries) #regionTable td small{font-size:10px}
+:is(#maps,#secondaries) #regionTable .regionalTable th:first-child,:is(#maps,#secondaries) #regionTable td:first-child{min-width:0;width:26%}
+:is(#maps,#secondaries) .workspaceRegionBlock+.workspaceRegionBlock{margin-top:10px;padding-top:10px}
+:is(#maps,#secondaries) .workspaceHint{font-size:10px;margin:10px 0 0;padding-top:8px}
+:is(#maps,#secondaries) .tilePicker{margin-bottom:6px;align-items:center}
+:is(#maps,#secondaries) .workspaceTile{font-size:11px;padding:4px 6px;height:28px}
+:is(#maps,#secondaries) .clearTile{font-size:10px;padding:4px 6px;min-height:28px}
+:is(#maps,#secondaries) .workspaceSelected{font:400 17px/1.3 Georgia,serif;margin:0 0 7px}
+:is(#maps,#secondaries) .pePlots{gap:8px}
+:is(#maps,#secondaries) .pePlotHeader{flex-wrap:nowrap;padding:0}
+:is(#maps,#secondaries) .pePlotHeader h2{font:600 10px/1.3 system-ui;padding:5px 7px}
+:is(#maps,#secondaries) .peScope{font-size:9px;margin:6px 0 0}
+#secondaries #volumeBasis{font-size:10px;margin:0 0 6px}
+#secondaries .sourceChoice{font-size:11px;min-height:0;padding:3px 2px;grid-template-columns:minmax(120px,1.4fr) minmax(30px,1fr) 50px}
+#secondaries .sourceChoice .volumeTrack{height:6px}
+#secondaries #selectedSourceDetails{font-size:10px;min-height:0;margin-top:6px;padding:6px 2px 0}
+#secondaries #secondaryEnergyPanel h2{font:400 17px/1.2 Georgia,serif;margin:0 0 6px}
+#secondaries .directionTable{margin-top:8px;padding-top:8px}
+#secondaries .directionTable table{font-size:11px}
+#secondaries .directionTable td,#secondaries .directionTable th{font-size:10px;padding:5px}
+/* Transport uses its original 1200:550 drawing coordinates without stretching. */
+#transport{display:flex;flex-direction:column;height:var(--workspace-height,650px);min-height:0}
+#transportScope{font-size:10px;margin:6px 0}
+#transport .transportControls{display:grid;grid-template-columns:minmax(200px,2fr) repeat(3,minmax(90px,1fr)) auto;gap:16px;margin:4px 0 10px;align-items:end}
+#transport .transportControls label{max-width:none}
+#transport .transportControls button{font-size:10px;padding:6px 9px}
+#transport .particleControls{gap:12px;margin:0 0 8px;min-height:26px}
+#transport .particleControls button,#transport .particleControls select{font-size:10px;padding:4px 8px}
+#transport .particleControls label{font-size:10px}
+#transport .transportStage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#0b1529;overflow:hidden}
+#transport #tracks{width:var(--transport-canvas-width,100%);height:auto;max-width:100%;max-height:100%;aspect-ratio:1200/550;display:block}
+#transport .ringInset{width:120px;right:12px;top:12px;padding:5px;font-size:9px}
+#transport .ringInset canvas{width:105px;height:105px}
+#transport .stageCaption{font-size:10px;left:12px;top:12px}
+#transport .ringControls{gap:4px;margin:6px 0}
+#transport .ringControls button{font-size:9px;padding:3px 6px}
+#transport .playback{gap:8px;margin:0;padding:0}
+#transport .playback button,#transport .playback select{font-size:10px;padding:3px 7px}
+#transport .playback label,#transport .streamStatus{font-size:10px}
+#transport .viewerHelp{font-size:9px;margin:5px 0;gap:10px}
+#transport .legend{font-size:9px;margin:4px 0;gap:10px}
+#transport .legend span{font-size:9px}
+#transport .animationSummary{font-size:9px;margin:4px 0 0}
+#statisticsFrame{display:block;border:0}
+#overview>h2{font:400 24px/1.2 Georgia,serif;margin:0 0 12px}
+#overview .deconvolutionVideo{max-width:none;margin:0;border:1px solid #d9ddd9;background:#0b111a;border-radius:9px;overflow:hidden;height:calc(100dvh - var(--site-header-height,82px) - 78px);display:flex;justify-content:center}
+#overview video{display:block;height:100%;width:100%;object-fit:contain}
+#changelog .changelogTable{font:12px/1.5 system-ui;margin:0;width:100%;min-width:0;table-layout:fixed}
+#changelog .changelogTable th{font-size:10px;letter-spacing:.09em;text-transform:uppercase;padding:10px 16px}
+#changelog .changelogTable td{padding:14px 16px;white-space:normal;border-bottom:1px solid #d9ddd9}
+#changelog .changelogTable th:first-child,#changelog .changelogTable td:first-child{width:100px}
+@media(max-width:1000px){
+ :is(#maps,#secondaries) .workspaceFilters{gap:10px}
+ :is(#maps,#secondaries) .workspaceFilters select{font-size:10px;padding:5px;height:29px}
+ :is(#maps,#secondaries) .detectorWorkspace{gap:12px}
+ #transport .transportControls{gap:8px}
+}
+@media(max-height:550px){
+ :is(#maps,#secondaries) .workspaceHeading{margin-bottom:6px;min-height:30px}
+ :is(#maps,#secondaries) .workspaceFilters{padding-bottom:6px;margin-bottom:6px}
+ :is(#maps,#secondaries) .workspaceFilters select{height:27px;padding:4px 6px;font-size:11px}
+ :is(#maps,#secondaries) .regionChecks,#secondaries .secondaryScopeControls{margin-bottom:6px}
+ #transport .ringInset{width:82px;font-size:7px}
+ #transport .ringInset canvas{width:70px;height:70px}
+ #transport .legend{margin:2px 0}
+}
+@media(max-width:700px){
+ :is(#maps,#secondaries) .workspaceFilters{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ :is(#maps,#secondaries) .detectorWorkspace{height:auto;grid-template-columns:1fr}
+ :is(#maps,#secondaries) .workspaceMap{height:calc(100dvh - var(--site-header-height,82px) - 24px)}
+ :is(#maps,#secondaries) .workspaceInspector{min-height:0;max-height:calc(100dvh - var(--site-header-height,82px) - 24px)}
+ #secondaries .secondaryContext{width:auto}
+ #datasetDetails{display:block;max-width:160px;font-size:9px}
+ #transport .transportControls{grid-template-columns:1fr 1fr}
+ #transport .transportControls label:first-child{grid-column:1/-1}
+ #transport{height:auto}
+ #transport .transportStage{flex:none;height:350px}
+ #overview>h2{font-size:20px}
+}
+
+#secondaries #secondaryEnergyPanel{display:flex;flex-direction:column;overflow:hidden}
+#secondaries #energyPlot{width:var(--energy-width,100%);max-width:100%;height:auto;flex:none}
+#secondaries .directionTable{flex:none}
+#transport .stageCaption strong{font-size:12px}
+#transport .geometryLegend{padding:5px 10px}
+#transport .ringInset strong,#transport .ringInset span{font-size:9px}
+#secondaries .directionTable h2{display:inline;font-size:14px;margin:0 8px 0 0}
+#secondaries .directionTable .statusline{display:inline;font-size:9px;margin:0}
+#secondaries .directionTable table{margin-top:5px}
+#secondaries .directionTable td,#secondaries .directionTable th{font-size:9px;padding:3px 5px;line-height:1.25}
+
+#maps .pePlot svg{width:100%;max-width:var(--pe-plot-width,100%);height:auto;display:block;margin:0 auto}
+
+/* Detector workspaces use a full screen; site navigation may scroll away. */
+body:is(.mapsView,.secondaryView) #siteHeader{position:relative;top:auto}
+:is(#maps,#secondaries) .detectorWorkspace{scroll-margin-top:12px}
+:is(#maps,#secondaries) .workspaceMap .regionChecks{flex:none;padding:5px 8px;margin:0;border-bottom:1px solid #263748;gap:5px;background:#101c2b;align-items:center}
+:is(#maps,#secondaries) .workspaceMap .regionChecks legend{color:#9eb4c8;font-size:9px;margin-right:4px;float:none;display:contents}
+:is(#maps,#secondaries) .workspaceMap .regionChecks label{font-size:10px;padding:3px 7px;background:#142335;border-color:#34495f;color:#becedf}
+:is(#maps,#secondaries) .workspaceMap .regionChecks label:has(input:checked){background:#254959;border-color:#7de1dc;color:#c0fff0}
+#secondaries .secondaryScopeControls{justify-content:flex-end}
+@media(max-width:700px){
+ :is(#maps,#secondaries) .workspaceMap{height:calc(100dvh - 24px);min-height:360px}
+ :is(#maps,#secondaries) .workspaceInspector{max-height:calc(100dvh - 24px)}
+}
+
+/* Region and color controls share one compact strip. */
+:is(#maps,#secondaries) .mapColorControls{gap:8px;min-height:30px}
+:is(#maps,#secondaries) .mapColorControls>span{display:none!important}
+:is(#maps,#secondaries) .mapColorControls .regionChecks{padding:0;margin:0!important;border:0;background:transparent;gap:4px;flex-wrap:nowrap;min-width:0}
+:is(#maps,#secondaries) .mapColorControls .regionChecks legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);display:block}
+:is(#maps,#secondaries) .mapColorControls .regionChecks label{font-size:9px;padding:3px 5px;gap:4px}
+:is(#maps,#secondaries) .mapColorControls .regionChecks input{width:11px;height:11px}
+:is(#maps,#secondaries) .mapColorControls .segmented{display:flex;flex-wrap:nowrap}
+:is(#maps,#secondaries) .mapColorControls .segmented button{font-size:9px;padding:3px 5px;white-space:nowrap}
+/* Keep the color key out of the central detector silhouette. */
+:is(#maps,#secondaries) .surfaceLegend{width:105px;left:10px;bottom:9px;font-size:8px;line-height:1.3}
+:is(#maps,#secondaries) .surfaceLegend .surfaceRamp{height:5px;margin-bottom:3px}
+:is(#maps,#secondaries) .surfaceLegend .surfaceEnds{font-size:8px;margin:0 0 3px}
+:is(#maps,#secondaries) .surfaceLegend .surfaceUnit{font-size:8px;line-height:1.3}
+@media(max-width:420px){:is(#maps,#secondaries) .mapColorControls{flex-wrap:wrap;gap:5px}}
+/* Click-open fit controls float beside the selected histogram, never over it. */
+.peFitBox{position:fixed;z-index:80;width:190px;max-width:calc(100vw - 16px);font:10px/1.35 system-ui;padding:8px;left:auto;top:auto;background:#fff;box-shadow:0 4px 18px #15253a25}
+.peFitBox .peFitRange{align-items:end;gap:6px}
+.peFitBox .peFitRange label{font:9px system-ui;display:grid;gap:3px}
+.peFitBox .peFitRange input{width:64px;font-size:10px}
+.peFitBox .fitSlider{display:grid;grid-template-columns:27px 1fr;align-items:center;gap:5px;font:9px system-ui;margin-top:7px}
+.peFitBox input[type=range]{width:100%;padding:0;margin:0;accent-color:#c32732}
+.peFitBox output:empty{display:none}
+.peFitBox output{font-size:9px;margin-top:5px;color:#a33131;display:block}
+.peFitBox button{font-size:10px}
+
+#changelog .changelogExpand{display:inline;padding:0;margin:0 0 0 8px;border:0;background:none;color:#087d99;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}

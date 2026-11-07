@@ -15,6 +15,17 @@ from build import HERE, BUDGET, PRODUCT_LIMIT, build, defaults
 
 BRANCH = 'shared-viewer'
 REPOSITORY = 'gahljust/moller-campaign-viewer'
+EXTENSION_BUDGET = 96 * 1024 * 1024
+
+def extension_index():
+    path = HERE / 'site_extensions.json'
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text())
+    if payload.get('schema') != 'moller_site_extensions_v1':
+        raise ValueError('Invalid supplementary file index.')
+    return payload['files']
+
 
 
 def command(*args):
@@ -54,6 +65,20 @@ def verify_site(site):
             raise ValueError('Conflicting product records.')
         products[name] = item
     expected.update(products)
+    extensions = extension_index()
+    extra_bytes = 0
+    for name, entry in extensions.items():
+        path = PurePosixPath(name)
+        if (path.is_absolute() or '..' in path.parts or '\\' in name
+                or not name.startswith(('farm/', 'grouped/', 'statistics/'))):
+            raise ValueError('Unsafe supplementary file path.')
+        file = site / name
+        if file.is_symlink() or file.stat().st_size != entry['bytes'] or digest(file) != entry['sha256']:
+            raise ValueError('Supplementary file mismatch: ' + name)
+        extra_bytes += entry['bytes']
+    if extra_bytes > EXTENSION_BUDGET:
+        raise ValueError('Supplementary files exceed budget.')
+    expected.update(extensions)
     if manifest.get('deconvolution_video_sha256'):
         expected.add('assets/deconvolution.mp4')
         video = site / 'assets/deconvolution.mp4'
@@ -118,7 +143,7 @@ def unpack(archive_path, output, checksum, commit):
                 raise ValueError('Unsafe or duplicate archive member.')
             names.add(member.name)
             total += member.size
-        if total > BUDGET + 36 * 1024 * 1024:
+        if total > BUDGET + EXTENSION_BUDGET + 36 * 1024 * 1024:
             raise ValueError('Deployment archive exceeds site budget.')
         output.mkdir(parents=True)
         for member in members:
@@ -149,7 +174,7 @@ def publish(site=None):
         checksum = pack(site, archive)
         notes = Path(temp) / 'notes.md'
         metadata = verify_site(site)
-        update = metadata.get('deconvolution_dataset', metadata.get('detector_selection_update', {})).get('note', '')
+        update = metadata.get('viewer_update', metadata.get('deconvolution_dataset', metadata.get('detector_selection_update', {}))).get('note', '')
         notes.write_text((update + '\n\n' if update else '') + f'Frozen shared viewer website.\n\nSource: `{commit}` on `{BRANCH}`.\n\n'
                          f'Archive SHA256: `{checksum}`.\n')
         command('gh', 'release', 'create', tag, str(archive), '--repo', REPOSITORY,

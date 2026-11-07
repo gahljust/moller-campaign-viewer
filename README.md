@@ -32,8 +32,8 @@ Requires Python 3, the prepared analysis data, and an authenticated GitHub CLI.
 Deployment progress appears in [Actions](https://github.com/gahljust/moller-campaign-viewer/actions).
 
 The main-detector selector offers **Rate weighting** and **Rate × PE response**.
-Deconvolution uses 2.7M develop Møller + 3M develop ep elastic + 2.55M sampled
-ep inelastic events. The dilution, covariance, correlation and fit products use
+The Sampled deconvolution uses 3M develop Møller + 3M develop ep elastic +
+3M sampled ep inelastic events. The separate Farm comparison uses 29.79M events. The dilution, covariance, correlation and fit products use
 this same dataset. Hit maps, PE histograms, secondaries and transport retain
 their previously published samples. ShowerMax uses expected PE response.
 The build checks the local analysis fingerprints and exports compact products
@@ -52,3 +52,10 @@ For the current deconvolution release, apply `update_deconvolution.py` to the
 prepared baseline export with the verified payload before publishing. Its
 hash and dataset identity are pinned in `deconvolution_dataset.json`; publishing
 an older dataset is rejected.
+
+November 7: the prepared static release includes the Farm dataset, Simulation
+Uncertainty plots, and the option to exclude Ring 5 measurements. Supplementary
+files are pinned by `site_extensions.json` and verified before upload and in CI.
+Publish with `--site` pointing to the complete prepared release; an incomplete
+legacy export is rejected. The source and data snapshot are distributed together
+through the existing release bundle workflow.

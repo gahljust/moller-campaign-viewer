@@ -1,0 +1,220 @@
+/* Local draft: scoped to the combined detector workspace. */
+:is(.mapsView,.secondaryView) main{max-width:1680px;padding:0 28px 24px}
+:is(.mapsView,.secondaryView)>header{padding:12px 28px;border-bottom-width:2px}
+:is(.mapsView,.secondaryView) .brand{font-size:18px}:is(.mapsView,.secondaryView) .brand span{font-size:15px}
+.previewTag{font:12px system-ui;color:#69788b;letter-spacing:0}
+:is(.mapsView,.secondaryView) nav{margin:0 0 18px;gap:28px}:is(.mapsView,.secondaryView) nav button{padding:12px 0;font-size:14px}
+:is(#maps,#secondaries) .workspaceHeading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 18px}
+:is(#maps,#secondaries) h1{font:600 25px/1.2 Calibri,Carlito,system-ui,sans-serif;margin:0}
+:is(#maps,#secondaries) .entryLabel{margin:0;padding-left:12px;border-left:2px solid #077d9e;font-size:12px;letter-spacing:0}
+:is(#maps,#secondaries) .workspaceFilters{display:grid;grid-template-columns:minmax(0,2.5fr) minmax(160px,1fr) minmax(140px,.75fr);gap:16px;padding:14px 16px;margin-bottom:16px;border:1px solid #dfe5eb;border-radius:8px;background:#f7f9fb}
+:is(#mapsCampaign,#secondaryCampaign) .selection{display:grid;grid-template-columns:1fr .8fr 1.3fr;gap:16px;margin:0}
+:is(#maps,#secondaries) .workspaceFilters label{font-size:12px;line-height:1.2;gap:6px;min-width:0;max-width:none;flex:auto}
+:is(#maps,#secondaries) .workspaceFilters select{padding:7px 9px;font-size:14px;width:100%;height:35px;background:#fff}
+:is(#maps,#secondaries) #identity,:is(#maps,#secondaries) #tile{display:none}
+:is(#maps,#secondaries) .workspaceStatus{font-size:13px;margin:0 0 10px;color:#9c4c12}
+:is(#maps,#secondaries) .workspaceStatus:empty{display:none}
+:is(#maps,#secondaries) .detectorWorkspace{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px;align-items:stretch}
+:is(#maps,#secondaries) .workspaceMap,:is(#maps,#secondaries) .workspaceInspector{min-width:0;border:1px solid #dce3e9;border-radius:9px;overflow:hidden;background:white}
+:is(#maps,#secondaries) .workspaceMap{background:#0c1420;border-color:#223449;display:flex;flex-direction:column}
+:is(#maps,#secondaries) .mapColorControls{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:#101c2b;border-bottom:1px solid #2a3b4d;padding:10px 12px}
+:is(#maps,#secondaries) .mapColorControls>span{font-size:12px;color:#9eb4c8}
+:is(#maps,#secondaries) .mapColorControls .segmented button{font-size:12px;padding:5px 9px;background:#142335;color:#becedf;border-color:#34495f}
+:is(#maps,#secondaries) .mapColorControls .segmented button[aria-pressed=true]{background:#254959;color:#c0fff0;border-color:#7de1dc}
+:is(#maps,#secondaries) .surfaceMap{border:0;border-radius:0;flex:1}
+:is(#maps,#secondaries) .workspaceCameraBar{display:flex;justify-content:space-between;gap:4px;flex-wrap:wrap;background:#101c2b;padding:4px 6px;border-bottom:1px solid #263748}
+:is(#maps,#secondaries) .surfaceToolbar{padding:5px 4px;border:0;gap:10px;flex-wrap:wrap}
+:is(#maps,#secondaries) .surfaceToolbar button{font-size:11px;padding:4px 6px}
+:is(#maps,#secondaries) .surfaceNavigation{padding:5px 4px;border:0}
+:is(#maps,#secondaries) .surfaceNavigation>span{display:none}
+:is(#maps,#secondaries) .surfaceStage{height:clamp(270px,calc(100dvh - 450px),680px)}
+:is(#maps,#secondaries) .surfaceLegend{width:210px;bottom:18px;left:18px}
+:is(#maps,#secondaries) .surfaceHelp{font-size:10px;bottom:18px}
+:is(#maps,#secondaries) .workspaceMapFooter{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-top:1px solid #263748;color:#9eb4c8;font-size:11px}
+:is(#maps,#secondaries) :is(#mapScope,#secondaryMapScope){margin:0;color:#b9cedf;font-size:12px;min-height:20px}
+:is(#maps,#secondaries) :is(#mapScope,#secondaryMapScope) strong{font:600 15px/1.3 Calibri,system-ui;color:#e4edf6}:is(#maps,#secondaries) :is(#mapScope,#secondaryMapScope) strong span{font-weight:400;color:#9eb4c8;font-size:12px}
+:is(#maps,#secondaries) .workspaceSignalUnits{display:flex;border:1px solid #34495f;border-radius:4px;overflow:hidden}
+:is(#maps,#secondaries) .workspaceSignalUnits button{background:transparent;border:0;border-radius:0;color:#adc1d3;padding:4px 9px;font-size:11px}
+:is(#maps,#secondaries) .workspaceSignalUnits button[aria-pressed=true]{background:#254959;color:#d0fff2}
+:is(#maps,#secondaries) .inspectorTabs{display:flex;align-items:stretch;gap:22px;padding:0 18px;border-bottom:1px solid #dce3e9;background:#f8fafc}
+:is(#maps,#secondaries) .inspectorTabs>button{border:0;border-bottom:3px solid transparent;background:transparent;border-radius:0;padding:13px 0 10px;font-weight:600;font-size:15px;color:#66778a;white-space:nowrap}
+:is(#maps,#secondaries) .inspectorTabs>button[aria-selected=true]{border-bottom-color:#077d9e;color:#077d9e}
+:is(#maps,#secondaries) .peLogAllLabel{margin-left:auto;display:flex;flex-direction:row;gap:5px;align-items:center;white-space:nowrap;font-size:11px}
+:is(#maps,#secondaries) .peLogAllLabel input{margin:0;accent-color:#077d9e}
+:is(#maps,#secondaries) #workspaceRegions{padding:20px 18px 16px}
+:is(#maps,#secondaries) .workspaceRegionBlock{margin:0;padding:0;border:0}
+:is(#maps,#secondaries) .workspaceRegionBlock+.workspaceRegionBlock{border-top:1px solid #d9e2e9;margin-top:14px;padding-top:16px}
+:is(#maps,#secondaries) .workspaceRegionBlock>h3{font:600 15px system-ui;margin-bottom:12px}
+:is(#maps,#secondaries) #regionTable h2{font:600 18px/1.2 Calibri,system-ui;margin:0}
+:is(#maps,#secondaries) #regionTable .regionHeading{margin-bottom:7px;gap:8px}
+:is(#maps,#secondaries) #regionTable .regionUnits{font-size:12px;margin:0 0 18px;color:#758294}
+:is(#maps,#secondaries) #regionTable table{margin:0;width:100%;font-size:14px}
+:is(#maps,#secondaries) #regionTable th{font-size:12px;background:#edf3f7;color:#3e586d;padding:10px 8px;font-weight:600;border-bottom:1px solid #c5d5de}
+:is(#maps,#secondaries) #regionTable td{padding:12px 8px;vertical-align:middle}
+:is(#maps,#secondaries) #regionTable td strong{font-size:16px}
+:is(#maps,#secondaries) #regionTable td small{font-size:11px}
+:is(#maps,#secondaries) #regionTable td+td{border-left:1px solid #e7edf1}
+:is(#maps,#secondaries) #regionTable tbody tr+tr td{border-top:1px solid #d7e1e8}
+:is(#maps,#secondaries) #regionTable tbody tr:last-child:not(:first-child) td{border-top:2px solid #9dbbc8;background:#edf5f8}
+:is(#maps,#secondaries) #regionTable .regionalTable th:first-child{width:24%;min-width:100px}
+:is(#maps,#secondaries) #regionTable .placementValues>div{padding:5px 0}
+:is(#maps,#secondaries) #regionTable .placementValues>div>div{display:flex;flex-wrap:wrap;gap:3px 5px}
+:is(#maps,#secondaries) #regionTable .placementValues small{display:inline;font-size:11px!important}
+:is(#maps,#secondaries) #regionTable .placementValues>div>span{font-size:10px}
+:is(#maps,#secondaries) .workspaceHint{font-size:12px;margin:22px 0 0;color:#708196;border-top:1px solid #e7edf1;padding-top:14px}
+:is(#maps,#secondaries) #workspaceTilePanel{padding:14px 16px}
+:is(#maps,#secondaries) .tilePicker{display:flex;align-items:end;gap:8px;margin-bottom:12px}
+:is(#maps,#secondaries) .tilePicker label{flex:1;font-size:11px;gap:4px;min-width:0}
+:is(#maps,#secondaries) .workspaceTile{font-size:13px;padding:6px 8px;height:33px;width:100%}
+:is(#maps,#secondaries) .clearTile{font-size:12px;padding:6px 10px;min-height:33px;white-space:nowrap;color:#566a7c}
+:is(#maps,#secondaries) .workspaceSelected{font:600 15px/1.3 Calibri,system-ui;margin:0 0 12px;color:#29455c}
+:is(#maps,#secondaries) .pePlots{gap:12px}
+:is(#maps,#secondaries) .pePlot{border-color:#dce5eb;border-radius:6px}
+:is(#maps,#secondaries) .pePlotHeader{border:0;padding:0 8px 0 0;background:#f3f7fa;gap:4px}
+:is(#maps,#secondaries) .pePlotHeader h2{font:600 12px/1.3 Calibri,system-ui;padding:9px 8px;background:transparent;margin:0}
+:is(#maps,#secondaries) .pePlotHeader label{font-size:10px;gap:3px;flex-direction:row}
+:is(#maps,#secondaries) .pePlot svg{width:100%;height:auto}
+:is(#maps,#secondaries) .peScope{font-size:10px;line-height:1.5;color:#718193;margin:14px 0 0}
+:is(#maps,#secondaries) .workspaceEmpty{grid-column:1/-1;min-height:310px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#7b8b9c;gap:10px;text-align:center}
+:is(#maps,#secondaries) .workspaceEmpty svg{width:46px;height:46px;fill:none;stroke:#a4bbc9;stroke-width:1.5;margin-bottom:7px}
+:is(#maps,#secondaries) .workspaceEmpty strong{font-size:17px;font-weight:500;color:#536b80}
+:is(#maps,#secondaries) .workspaceEmpty span{font-size:13px;max-width:300px}
+.regionChecks{display:flex;align-items:center;gap:8px;border:0;padding:0;margin:0 0 14px;min-width:0;flex-wrap:wrap}
+.regionChecks legend{float:left;font:12px Calibri,system-ui;color:#607286;padding:0;margin:0 6px 0 0}
+.regionChecks label{display:flex;flex-direction:row;align-items:center;gap:6px;font:12px Calibri,system-ui;white-space:nowrap;padding:5px 10px;border:1px solid #d8e1e7;border-radius:5px;background:#fff;cursor:pointer}
+.regionChecks label:has(input:checked){background:#eef6f8;border-color:#b9d5df;color:#126581}
+.regionChecks input{margin:0;width:13px;height:13px;accent-color:#077d9e}
+#secondaries #secondaryRegions{margin-top:0;margin-bottom:12px}
+#secondaries .secondaryControls{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(min-width:1450px){:is(#maps,#secondaries) .pePlotHeader h2{font-size:14px}:is(#maps,#secondaries) .pePlotHeader label{font-size:11px}:is(#maps,#secondaries) .pePlots{gap:14px}:is(#maps,#secondaries) .workspaceInspector{padding-bottom:10px}}
+@media(max-width:1100px){:is(#maps,#secondaries) .workspaceFilters{grid-template-columns:minmax(0,2fr) minmax(150px,.85fr);gap:12px}:is(#maps,#secondaries) .workspaceFilters>label:last-child{grid-column:2}:is(#mapsCampaign,#secondaryCampaign){grid-row:span 2;align-self:center}:is(#mapsCampaign,#secondaryCampaign) .selection{grid-template-columns:1fr 1fr;gap:12px}:is(#mapsCampaign,#secondaryCampaign) label:has(#processSelect){grid-column:1/-1}:is(#maps,#secondaries) .surfaceHelp{display:none}:is(#maps,#secondaries) .detectorWorkspace{gap:14px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}:is(#maps,#secondaries) .surfaceStage{height:clamp(360px,calc(100dvh - 420px),600px)}:is(#maps,#secondaries) .inspectorTabs{gap:16px;padding:0 12px}:is(#maps,#secondaries) .inspectorTabs>button{font-size:13px}:is(#maps,#secondaries) #workspaceRegions{padding:15px 12px}:is(#maps,#secondaries) #workspaceTilePanel{padding:12px}:is(#maps,#secondaries) .pePlotHeader{flex-wrap:wrap;padding:0 8px 5px}:is(#maps,#secondaries) .pePlotHeader h2{padding-left:0}:is(#maps,#secondaries) #regionTable td strong{font-size:14px}:is(#maps,#secondaries) #regionTable th:first-child,:is(#maps,#secondaries) #regionTable td:first-child{min-width:90px}:is(#maps,#secondaries) #regionTable th,:is(#maps,#secondaries) #regionTable td{padding-left:6px;padding-right:6px}}
+@media(max-width:800px){:is(.mapsView,.secondaryView) main{padding:0 16px 20px}:is(.mapsView,.secondaryView)>header{padding:10px 16px}:is(.mapsView,.secondaryView) .brand span{display:none}:is(.mapsView,.secondaryView) nav{gap:22px;margin-bottom:14px}:is(#maps,#secondaries) h1{font-size:22px}:is(#maps,#secondaries) .workspaceHeading{flex-wrap:wrap;margin-bottom:12px}:is(#maps,#secondaries) .detectorWorkspace{grid-template-columns:1fr}:is(#maps,#secondaries) .surfaceStage{height:410px}:is(#maps,#secondaries) .workspaceFilters{padding:12px;gap:10px;margin-bottom:12px}:is(#maps,#secondaries) .surfaceHelp{display:block}:is(#maps,#secondaries) .pePlotHeader{flex-wrap:nowrap;padding:0 8px 0 0}:is(#maps,#secondaries) .pePlotHeader h2{padding:9px 8px}:is(#maps,#secondaries) .workspaceInspector{min-height:300px}:is(#maps,#secondaries) #regionTable td strong{font-size:16px}}
+@media(max-width:480px){:is(.mapsView,.secondaryView) nav{gap:18px}:is(.mapsView,.secondaryView) nav button{font-size:13px}:is(#maps,#secondaries) .workspaceFilters{grid-template-columns:1fr 1fr}:is(#mapsCampaign,#secondaryCampaign){grid-column:1/-1;grid-row:auto}:is(#mapsCampaign,#secondaryCampaign) .selection{grid-template-columns:1fr .7fr 1.15fr;gap:8px}:is(#mapsCampaign,#secondaryCampaign) label:has(#processSelect){grid-column:auto}:is(#maps,#secondaries) .workspaceFilters label{font-size:11px}:is(#maps,#secondaries) .workspaceFilters select{font-size:12px;padding:5px}:is(#maps,#secondaries) .mapColorControls{padding:9px 10px}:is(#maps,#secondaries) .mapColorControls>span{display:none}:is(#maps,#secondaries) .mapColorControls .segmented{width:100%}:is(#maps,#secondaries) .mapColorControls button{flex:1}:is(#maps,#secondaries) .surfaceStage{height:340px}:is(#maps,#secondaries) .surfaceHelp{display:none}:is(#maps,#secondaries) .pePlots{grid-template-columns:1fr}:is(#maps,#secondaries) .pePlotHeader h2{font-size:14px}:is(#maps,#secondaries) .pePlotHeader label{font-size:12px}:is(#maps,#secondaries) .entryLabel{font-size:11px}:is(#maps,#secondaries) .inspectorTabs>button{font-size:14px}:is(#maps,#secondaries) .peLogAllLabel{font-size:10px}}
+
+/* The same hierarchy on both pages: campaign, detector, ring, then regions. */
+:is(#maps,#secondaries) .workspaceFilters{grid-template-columns:minmax(0,2.6fr) minmax(120px,.85fr) minmax(90px,.55fr) minmax(130px,.8fr);gap:14px}
+:is(#maps,#secondaries) .workspaceFilters:has(select#mapRing):has(#mapRing:disabled){grid-template-columns:2.6fr .85fr .55fr .8fr}
+:is(#maps,#secondaries) .workspaceFilters:has(label[hidden]){grid-template-columns:minmax(0,2.6fr) minmax(150px,1fr)}
+#secondaries .secondaryScopeControls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 14px}
+#secondaries #secondaryRegions{margin:0}
+#secondaries .secondaryContext{display:flex;gap:14px;flex-wrap:wrap}
+#secondaries .secondaryContext label{display:flex;flex-direction:row;align-items:center;gap:8px;font-size:12px;white-space:nowrap}
+#secondaries .secondaryContext select{font-size:12px;padding:5px 8px;width:auto;max-width:220px}
+#secondaries .mapColorControls{min-height:50px}
+#secondaries .secondaryPatternTitle{font-size:13px;color:#c0d1df;display:block!important}
+#secondaries #clearSecondarySource{font-size:11px;padding:4px 8px;background:#142335;color:#c0d1df;border-color:#34495f}
+#secondaries #secondarySourcesPanel,#secondaries #secondaryEnergyPanel{padding:16px 18px}
+#secondaries #volumeBasis{font-size:12px;color:#758294;margin:0 0 14px}
+#secondaries .sourceChoice{padding:6px 4px;font-size:14px;min-height:29px;grid-template-columns:minmax(150px,1.3fr) minmax(40px,1fr) 64px}
+#secondaries .sourceChoice .volumeTrack{height:10px;border-radius:2px}
+#secondaries .sourceChoice .volumeTrack i{border-radius:2px}
+#secondaries #selectedSourceDetails{min-height:38px;margin-top:14px;padding:12px 4px 0;font-size:12px;line-height:1.5}
+#secondaries #secondaryEnergyPanel h2{font:600 17px/1.3 Calibri,system-ui;margin:0 0 10px}
+#secondaries #energyPlot{display:block;width:100%;height:auto;max-width:650px;margin:auto}
+#secondaries .directionTable{margin:14px 0 0;border-top:1px solid #e2e9ee;padding-top:16px}
+#secondaries .directionTable .statusline{font-size:11px;margin:0 0 8px}
+#secondaries .directionTable table{font-size:13px;margin:0}
+#secondaries .directionTable th{background:#edf3f7;color:#3e586d;font-size:12px}
+#secondaries .directionTable td,#secondaries .directionTable th{padding:8px}
+#secondaries .directionTable td:first-child{white-space:normal}
+@media(max-width:1100px){
+ :is(#maps,#secondaries) .workspaceFilters{grid-template-columns:repeat(3,minmax(0,1fr))}
+ :is(#mapsCampaign,#secondaryCampaign){grid-column:1/-1;grid-row:auto}
+ :is(#mapsCampaign,#secondaryCampaign) .selection{grid-template-columns:1fr .8fr 1.3fr;gap:12px}
+ :is(#mapsCampaign,#secondaryCampaign) label:has(#processSelect){grid-column:auto}
+ :is(#maps,#secondaries) .workspaceFilters>label:last-child{grid-column:auto}
+ #secondaries .secondaryScopeControls{align-items:start}
+ #secondaries .secondaryContext{gap:8px}
+ #secondaries .secondaryContext label{font-size:11px;gap:5px}
+ #secondaries .secondaryContext select{max-width:180px;font-size:11px}
+ #secondaries .sourceChoice{font-size:12px;grid-template-columns:minmax(130px,1.5fr) minmax(25px,1fr) 55px}
+}
+@media(max-width:800px){
+ #secondaries #secondarySourcesPanel{margin-top:0}
+ #secondaries .secondaryContext{width:100%;justify-content:space-between}
+ #secondaries .sourceChoice{font-size:14px;grid-template-columns:minmax(130px,1.4fr) minmax(25px,1fr) 65px}
+ #secondaries .directionTable table{font-size:12px}
+}
+@media(max-width:480px){
+ :is(#maps,#secondaries) .workspaceFilters{gap:8px}
+ :is(#mapsCampaign,#secondaryCampaign) .selection{gap:8px}
+ #secondaries .secondaryContext label{flex-direction:column;align-items:start;flex:1;white-space:normal}
+ #secondaries .secondaryContext select{max-width:100%;width:100%}
+ .regionChecks{gap:5px}.regionChecks label{padding:5px 7px}
+}
+
+.previewControls{display:flex;align-items:center;gap:12px;margin-left:auto}.previewControls button{padding:3px 8px;font-size:11px;color:#617286;border-color:#dce3e9;background:transparent}
+
+#maps #regionTable .regionalTable.hasPlacements td{padding:7px 8px}#maps #regionTable .placementValues>div{padding:2px 0}
+
+/* Main navigation belongs to the website header, consistently across pages. */
+#siteHeader{position:sticky;top:0;z-index:40;background:#fff;display:flex;align-items:center;flex-wrap:nowrap;gap:26px;padding:0 28px;border-bottom:2px solid #f4781f;min-height:74px}
+#siteHeader .brand{flex:none;font-size:20px;line-height:1.25}
+#siteHeader .brand span{display:block;margin:3px 0 0;font-size:12px}
+#siteNav{flex:1;min-width:0;margin:0;border:0;gap:22px;align-self:stretch;align-items:stretch;overflow-x:auto}
+#siteNav button{font-size:14px;padding:23px 0 20px;border-bottom:3px solid transparent;line-height:24px}
+#siteNav button[aria-selected=true]{border-bottom-color:var(--teal)}
+#siteHeader .previewControls{flex:none;margin-left:0;gap:8px}
+#siteHeader .previewTag{font-size:10px}
+body:has(#siteHeader)>main{padding-top:24px}
+@media(max-width:1180px){#siteHeader{gap:0 24px;flex-wrap:wrap;padding-top:12px}#siteHeader .previewControls{margin-left:auto}#siteNav{order:3;flex-basis:100%;gap:24px}#siteNav button{padding:12px 0 9px}}
+@media(max-width:600px){#siteHeader{padding-left:16px;padding-right:16px}#siteNav{gap:20px}#siteNav button{font-size:13px}#siteHeader .brand span{display:block}body:has(#siteHeader)>main{padding-top:18px}}
+
+/* Fit controls appear only after clicking a PE histogram. */
+.pePlot{position:relative}
+.peFitBox{box-sizing:border-box;position:absolute;z-index:4;left:19%;top:36px;width:145px;padding:6px;background:rgba(255,255,255,.96);border:1px solid #cad3df;border-radius:7px;box-shadow:0 3px 12px #15253a24;font:9px/1.2 system-ui;color:#26364c}
+.peFitBox[hidden]{display:none}
+.peFitBox header{display:flex;align-items:center;justify-content:space-between;margin:0 0 5px;padding:0;background:none;position:static;min-height:0}
+.peFitBox button{padding:3px 7px;font:inherit;min-height:0;border:1px solid #cad3df;border-radius:4px;background:#fff;color:inherit;cursor:pointer}
+.peFitBox .fitClose{border:0;padding:0 2px;font-size:16px}
+.peFitRange{display:flex;align-items:center;gap:4px}
+.peFitBox input{width:49px;min-width:0;padding:3px;font:inherit;border:1px solid #cad3df;border-radius:3px}
+.peFitActions{display:flex;gap:5px;margin-top:6px}
+.peFitActions button:first-child{background:#077d9e;border-color:#077d9e;color:white}
+.peFitBox output{display:grid;grid-template-columns:1fr auto;gap:3px;margin-top:6px}
+.peFitBox output b{font-weight:600}
+.peFitBox output small{grid-column:1/-1;font-size:10px}
+
+.deconIntro{font-size:14px;color:#455065;margin:12px 0 24px}.deconIntro a{color:#077d9e;text-decoration:underline;text-underline-offset:3px}#detectorExplorer{margin-top:40px;scroll-margin-top:100px}.comparisonPanel .deconIntro{display:none}
+
+/* Compact deconvolution setup; the navigation already supplies its title. */
+body:has(#results:not([hidden]))>main{padding-top:12px}
+body:has(#results:not([hidden])) .datasetChoice{margin:0 0 6px;gap:6px}
+body:has(#results:not([hidden])) .datasetChoice>span{font-size:10px}
+body:has(#results:not([hidden])) .datasetChoice button{font-size:12px;padding:4px 9px}
+#results>.heading{margin:0;min-height:0;justify-content:flex-start}
+#results #resultScope{font-size:12px;line-height:1.4;margin:0;color:#687482}
+#results .deconIntro{display:flex;justify-content:space-between;align-items:baseline;gap:8px 24px;flex-wrap:wrap;margin:5px 0 12px;font-size:12px;line-height:1.4}
+#results .deconIntro p{margin:0;font-size:inherit}
+#results .deconIntro>span{color:#687482;font-size:11px}
+#results .responseChoice{margin:0 0 8px;padding:8px 0;border-top:1px solid #e3e8ed}
+#results .responseChoice .heading{justify-content:flex-start;gap:12px 30px;flex-wrap:wrap;margin:0}
+#results .responseChoice label{display:flex;flex-direction:row;align-items:center;gap:8px;font-size:12px}
+#results .responseChoice select{font-size:12px;padding:4px 7px;min-height:28px}
+#results .responseChoice p{font-size:11px;line-height:1.4;margin:5px 0 0;color:#687482}
+#results .matrixTabs{margin-top:0}
+.comparisonPanel #results .deconIntro{display:none}
+
+/* One compact control row with contextual notes at screen right. */
+#deconToolbar{display:flex;align-items:flex-start;gap:12px 20px;margin-bottom:5px}
+#deconToolbar .datasetChoice{flex:none;align-self:flex-start;margin:0;padding-top:1px}
+#deconControls{flex:0 1 auto;min-width:0}
+#deconToolbar .responseChoice{margin:0;padding:0;border:0}
+#deconToolbar .responseChoice .heading{gap:8px 16px;flex-direction:row}
+#deconToolbar .responseChoice label{font-size:11px;gap:5px;white-space:nowrap}
+#deconToolbar .responseChoice select{font-size:11px;padding:3px 5px;min-height:28px}
+#deconToolbar .responseChoice p{font-size:10px;margin-top:3px}
+#results .deconContext{margin-left:auto;flex:none;text-align:right;align-self:flex-start}
+#results .deconContext p,#results .deconContext #resultScope{font-size:10px;font-weight:700;line-height:1.45;margin:0;color:#687482}
+#results .deconIntro{margin:4px 0 10px}
+.comparisonPanel .deconContext{display:none}
+@media(max-width:1250px){#deconToolbar{flex-wrap:wrap;gap:6px 16px}#results .deconContext{flex:1 1 260px}#deconControls{flex:1 1 400px}}
+@media(max-width:650px){#deconToolbar .responseChoice .heading{flex-wrap:wrap}#deconControls{order:3;flex-basis:100%}#results .deconContext{flex:1 1 230px}}
+
+.secondaryTileControls{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #e2e6eb;flex:none}.secondaryTileControls label{display:flex;align-items:center;gap:8px;font-size:11px;flex:1;min-width:0}.secondaryTileControls select{min-width:0;width:100%;padding:5px 8px;font-size:11px}.secondaryTileControls button{font-size:11px;padding:5px 8px}
+
+#secondaries .secondaryTileControls label{display:flex;flex-direction:row;align-items:center;gap:8px;font-size:11px;text-align:left}#secondaries .secondaryTileControls select{margin:0}
+
+/* Guidance occupies the existing inspector header, never an extra row. */
+.inspectorTabs .plotGestureNote{display:none;margin-left:auto;font:9px/1.35 system-ui;color:#657486;text-align:right;font-weight:400;white-space:nowrap}
+.inspectorTabs:has([data-workspace-panel="tile"][aria-selected="true"]) .plotGestureNote{display:block}

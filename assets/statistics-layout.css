@@ -1,0 +1,28 @@
+html,body{height:100%;min-height:0;overflow:hidden}
+body{font:12px/1.4 system-ui;color:#26374a;background:#fbfaf7!important;display:flex;flex-direction:column}
+body>.toolbar{flex:none;gap:12px;margin:0 0 12px!important;padding:0 0 8px;border-bottom:1px solid #d9ddd9;flex-wrap:nowrap}
+nav{gap:22px;flex-wrap:nowrap}
+nav button{font:12px/1.4 system-ui;background:transparent;border:0;border-bottom:2px solid transparent;border-radius:0;padding:8px 0;color:#455065;white-space:nowrap}
+nav button[aria-selected=true]{background:none;color:#077d9e;border-color:#077d9e;font-weight:650}
+.view-select{font-size:10px;gap:7px}
+.view-select select{font:11px/1.4 system-ui;border-color:#d8dcd9;background:transparent;padding:5px 7px;min-width:0;max-width:250px}
+.panel{flex:1;min-height:0;display:flex;flex-direction:column}
+.panel section{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;border:1px solid #d9ddd9;background:#fff;border-radius:8px;padding:6px;margin:0}
+.figure{flex:none;margin:0;max-width:100%}
+.figure img{width:100%;height:auto}
+@media(max-width:700px){body>.toolbar{flex-wrap:wrap;gap:6px}nav{gap:16px}.view-select{width:100%}.view-select select{max-width:none}nav button{font-size:11px;padding:6px 0}}
+
+/* A statistics sheet contains many independent plots; retain readable plot sizes. */
+html,body{height:auto;min-height:0;overflow:visible}
+body{display:block}
+.panel{display:block}
+.panel section{display:block;padding:8px}
+.figure{width:100%;max-width:none}
+.fit-menu{width:190px;font-size:9px;z-index:50}
+.fit-menu .fit-sliders{display:grid;gap:5px;margin:7px 0}
+.fit-menu .fit-sliders label{display:grid;grid-template-columns:25px 1fr 40px;gap:4px;align-items:center;font:9px system-ui}
+.fit-menu .fit-sliders input{width:100%;min-width:0;margin:0;accent-color:#c32732}
+.fit-menu .fit-sliders output{font-size:8px;text-align:right}
+.fit-menu .fit-actions button{font-size:9px}
+
+.toolbar .plotGestureNote{font:9px/1.35 system-ui;color:#657486;text-align:right;white-space:nowrap;margin-left:auto}

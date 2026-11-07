@@ -54,10 +54,10 @@ function decodeSourceMap(value){
 }
 function selectSourceMap(data,source,region='all',momentum='all'){
  const selected=Array.isArray(source)?source.map(name=>data.sources[name]):source?[data.sources[source]]:Object.values(data.sources);if(selected.some(s=>!s))throw Error('Source map unavailable: '+source);
- const ri=region==='all'?-1:data.regions.indexOf(region),di=momentum==='all'?-1:data.directions.indexOf(momentum);
- if(region!=='all'&&ri<0||momentum!=='all'&&di<0)throw Error('Unknown source-map selection');
+ const chosen=region==='all'?data.regions:Array.isArray(region)?region:[region],indices=new Set(chosen.map(r=>data.regions.indexOf(r))),di=momentum==='all'?-1:data.directions.indexOf(momentum);
+ if(indices.has(-1)||momentum!=='all'&&di<0)throw Error('Unknown source-map selection');
  const bins=new Map(),energy=new Array(62).fill(0);let weight=0;
- const matches=(r,d)=>(ri<0||ri===r)&&(di<0||di===d);
+ const matches=(r,d)=>indices.has(r)&&(di<0||di===d);
  for(const item of selected){
   for(const [x,y,r,d,w] of item.rows)if(matches(r,d)){const key=x+','+y;bins.set(key,(bins.get(key)||0)+w)}
   item.weights.forEach((row,r)=>row.forEach((w,d)=>{if(matches(r,d))weight+=w}));

@@ -34,7 +34,8 @@ class PublishGuards(unittest.TestCase):
                         publish.unpack(archive, root / 'site', checksum, 'a' * 40)
                 self.assertFalse((root / 'site').exists())
 
-    def test_valid_bundle_roundtrip_and_data_corruption(self):
+    @patch.object(publish, "extension_index", return_value={})
+    def test_valid_bundle_roundtrip_and_data_corruption(self, _extensions):
         import gzip
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -53,7 +54,17 @@ class PublishGuards(unittest.TestCase):
             manifest = {'schema': 'moller_shared_viewer_v1', 'cohort': 'test',
                         'compressed_bytes': len(payload), 'products': {
                             'catalog?': {'path': name, 'sha256': sha, 'bytes': len(payload)}}}
+            manifest['deconvolution_dataset'] = json.loads((publish.HERE / 'deconvolution_dataset.json').read_text())['dataset']
             (site / 'manifest.json').write_text(json.dumps(manifest))
+            extra = site / 'grouped/test.json'
+            extra.parent.mkdir()
+            extra.write_text('{}')
+            entry = {'grouped/test.json': {'bytes': 2, 'sha256': publish.digest(extra)}}
+            with patch.object(publish, 'extension_index', return_value=entry):
+                publish.verify_site(site)
+                extra.write_text('[]')
+                with self.assertRaises(ValueError): publish.verify_site(site)
+            extra.unlink()
             commit = 'a' * 40
             archive = root / 'site.tar.gz'
             with patch.object(publish, 'source_commit', return_value=commit):

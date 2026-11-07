@@ -23,7 +23,7 @@ async function loadPresentation(){
  }catch(e){presentationError='Presentation settings could not be read; keeping the current display settings.'}
 }
 const label=r=>`${targetLabel(r.target)} · ${+r.energy_mev/1000} GeV · ${names[r.channel]||r.channel} · ${r.target==='lh2'?'LH2':`sieve ${r.sieve}`} · ${r.cohort==='unverified-history'?'historical, unverified':r.source_commit?.slice(0,8)||r.cohort.slice(0,8)}`;
-let catalog,run,tab=location.hash==='#deconvolution'?'results':location.hash==='#changelog'?'changelog':'maps',revision=0,resultData,mapData,bank,trackData,geo,playing=false,lastFrame=0,framePending=false,mapRevision=0;
+let catalog,run,tab=location.hash==='#overview'?'overview':location.hash==='#statistics'?'statistics':location.hash==='#deconvolution'?'results':location.hash==='#changelog'?'changelog':'maps',revision=0,resultData,mapData,bank,trackData,geo,playing=false,lastFrame=0,framePending=false,mapRevision=0;
 let detectorResponse='2',regionAggregation='total';
 function syncResponseControls(){
  const supported=!!staticManifest?.main_detector_response&&(tab==='results'||staticManifest.main_detector_response.runs.includes(run));
@@ -41,14 +41,18 @@ async function changeResponse(value){
 const cache=new Map();
 let staticManifest;
 async function api(route,args={}){
- staticManifest=staticManifest||await (await fetch('manifest.json?v=analysis-unwrap-20261022',{cache:'no-cache'})).json();
+ const dataset=ViewerDatasets.active,epoch=ViewerDatasets.epoch;
+ const manifest=await ViewerDatasets.manifest(dataset);
+ if(epoch!==ViewerDatasets.epoch)throw new DOMException('Dataset selection changed.','AbortError');
+ staticManifest=manifest;
  args={...args};if(route==='surface-maps')delete args.response;
  if(!staticManifest.main_detector_response||(['maps','secondary-sources'].includes(route)&&(args.response==='0'||['circle','full_plane'].includes(args.plane)||args.tile)))delete args.response;
  let key=route+'?'+new URLSearchParams(Object.entries(args).sort(([a],[b])=>a.localeCompare(b))),item=staticManifest.products[key];
  if(!item)throw Error('This saved product is unavailable.');
- let response=await fetch(item.path);if(!response.ok)throw Error('Unable to load saved product.');
+ let response=await fetch((dataset==='farm'?'farm/':'')+item.path);if(!response.ok)throw Error('Unable to load saved product.');
  let raw=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer(),digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),x=>x.toString(16).padStart(2,'0')).join('');
  if(digest!==item.sha256)throw Error('Saved product hash mismatch.');
+ if(epoch!==ViewerDatasets.epoch)throw new DOMException('Dataset selection changed.','AbortError');
  let value=JSON.parse(new TextDecoder().decode(raw));if(route==='maps'&&args.tile)value.plane=args.plane;let sh=value.histograms?.data;if(sh?.secondary_map_encoding==='direction_sum_4sig_v1')sh.secondary_maps.all=M.sumMaps(Object.values(sh.secondary_maps).map(bins=>({bins})));
  if(value.map_recipe==='sum_source_maps_v1'){
   let sources=await Promise.all(value.map_sources.map(name=>api('maps',{run:name,plane:args.plane,tile:''})));
@@ -61,10 +65,10 @@ function download(name,data,type='application/json'){let url=URL.createObjectURL
 function table(headers,rows){return `<div class="scroll"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function warning(text){return `<div class="warning">${esc(text)}</div>`}
 function card(title,value,note=''){return `<div class="card"><span>${esc(title)}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></div>`}
-function fail(e){$(tab==='transport'?'transportNotice':'notice').innerHTML=warning(e.message||e)}
-async function initialize(){try{await loadPresentation();catalog=await api('catalog');catalog.runs=[...catalog.runs,...(catalog.combined||[])];let before=run;$('run').innerHTML=catalog.runs.map(r=>`<option value="${esc(r.name)}">${esc(label(r))}</option>`).join('');run=catalog.runs.some(r=>r.name===before)?before:catalog.default;$('run').value=run;setupSelection();cache.clear();await changeRun()}catch(e){fail(e)}}
+function fail(e){if(e.name==='AbortError')return;$(tab==='transport'?'transportNotice':'notice').innerHTML=warning(e.message||e)}
+async function initialize(preferred){try{await loadPresentation();catalog=await api('catalog');catalog.runs=[...catalog.runs,...(catalog.combined||[])];let before=run;$('run').innerHTML=catalog.runs.map(r=>`<option value="${esc(r.name)}">${esc(label(r))}</option>`).join('');run=catalog.runs.some(r=>r.name===before)?before:catalog.runs.find(r=>preferred&&r.target===preferred.target&&+r.energy_mev===+preferred.energy_mev&&r.channel===preferred.channel)?.name||catalog.default;$('run').value=run;setupSelection();cache.clear();await changeRun()}catch(e){fail(e)}}
 function setupSelection(){setPhysicalPickers(catalog.runs.find(x=>x.name===run))}
-function setPhysicalPickers(preferred={}){let rows=catalog.runs;for(let [id,key] of [['targetSelect','target'],['energySelect','energy_mev'],['processSelect','channel']]){let values=[...new Set(rows.map(r=>String(r[key])))],wanted=String(preferred[key]??$(id).value),choice=values.includes(wanted)?wanted:values[0];$(id).innerHTML=values.map(v=>`<option value="${esc(v)}">${esc(key==='energy_mev'?+v/1000+' GeV':key==='channel'?names[v]||v:key==='target'?targetLabel(v):v==='none'?'Not applicable':v)}</option>`).join('');$(id).value=choice;rows=rows.filter(r=>String(r[key])===choice)}if(rows.length){const selected=rows.find(r=>r.name===(preferred.name||run))||rows.find(r=>r.sieve==='none')||rows[0];run=selected.name;$('run').value=run}}
+function setPhysicalPickers(preferred={}){let rows=catalog.runs.filter(r=>r.target==='lh2'&&+r.energy_mev===11000);for(let [id,key] of [['targetSelect','target'],['energySelect','energy_mev'],['processSelect','channel']]){let values=[...new Set(rows.map(r=>String(r[key])))],wanted=String(preferred[key]??$(id).value),choice=values.includes(wanted)?wanted:values[0];$(id).innerHTML=values.map(v=>`<option value="${esc(v)}">${esc(key==='energy_mev'?+v/1000+' GeV':key==='channel'?names[v]||v:key==='target'?targetLabel(v):v==='none'?'Not applicable':v)}</option>`).join('');$(id).value=choice;rows=rows.filter(r=>String(r[key])===choice)}if(rows.length){const selected=rows.find(r=>r.name===(preferred.name||run))||rows.find(r=>r.sieve==='none')||rows[0];run=selected.name;$('run').value=run}}
 for(let id of ['targetSelect','energySelect','processSelect'])$(id).onchange=()=>{setPhysicalPickers();changeRun().catch(fail)};
 async function changeRun(){
  revision++;mapRevision++;run=$('run').value;let r=catalog.runs.find(r=>r.name===run);
@@ -81,8 +85,10 @@ function interactionPanel(d,unit='PE/s',current=null){
  let sigma=(v,e)=>fmt(v)+(e==null?' · uncertainty unavailable':' ± '+fmt(e,3));
  return `<div class="combinedPanel"><h2>Interaction contributions</h2><div class="cards">${card('Recorded signal',sigma(a.estimate,a.standard_error)+' '+unit,current==null?'Independent source runs':current+' µA beam current')}${card('Interactions',a.components.length,'Fractions of the recorded signal')}</div><div class="contributionStack" role="img" aria-label="Interaction fractions">${a.components.map((r,i)=>`<span style="width:${100*(r.fraction||0)}%;background:${colors[i%colors.length]}" title="${esc(names[r.channel]||r.channel)}: ${esc(percentError(r.fraction,r.fraction_standard_error))}"></span>`).join('')}</div>${table(['Interaction',`Signal [${unit}]`,'Signal fraction ± MC error'],a.components.map((r,i)=>[`<span class="processKey" style="background:${colors[i%colors.length]}"></span>${esc(names[r.channel]||r.channel)}`,esc(sigma(r.estimate,r.standard_error)),`<strong>${esc(percentError(r.fraction,r.fraction_standard_error))}</strong>`]))}</div>`;
 }
-async function showTab(name){if(!['results','maps','analysis','secondaries','transport','changelog'].includes(name))return;if(!catalog||!run){tab=name;return;}mapRevision++;secondaryRevision++;tab=name;syncResponseControls();if(name!=='results')$('deconvolutionVideo').pause();document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps'||name==='analysis');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport'||tab==='changelog';$('notice').hidden=tab==='transport'||tab==='changelog';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='analysis')await showAnalysis();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
+async function showTab(name){if(name==='analysis')name='maps';if(!['results','maps','analysis','secondaries','transport','changelog','statistics','overview'].includes(name))return;if(!catalog||!run){tab=name;return;}mapRevision++;secondaryRevision++;tab=name;syncResponseControls();if(name!=='overview')$('deconvolutionVideo').pause();document.body.classList.toggle('secondaryView',name==='secondaries');document.body.classList.toggle('mapsView',name==='maps'||name==='analysis');if(name==='secondaries')$('secondaryCampaign').append($('analysisSelection'));else if(name==='maps')$('mapsCampaign').append($('analysisSelection'));else $('selectionHome').after($('analysisSelection'));ViewerDatasets.sync(tab);StatisticalPage.show(tab==='statistics');$('identity').textContent='';$('analysisSelection').hidden=tab==='results'||tab==='transport'||tab==='changelog'||tab==='statistics'||tab==='overview';$('notice').hidden=tab==='transport'||tab==='changelog'||tab==='statistics'||tab==='overview';playing=false;$('play').textContent='Play';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!==tab);document.querySelectorAll('nav button').forEach(e=>e.setAttribute('aria-selected',String(e.dataset.tab===tab)));try{if(tab==='results')await showResults();if(tab==='maps')await loadMap();if(tab==='analysis')await showAnalysis();if(tab==='secondaries')await loadSecondaries();if(tab==='transport')await initTransport()}catch(e){fail(e)}}
 async function showResults(){
+ $('deconControls').replaceChildren();
+ if(ViewerDatasets.compare){ViewerDatasets.showComparison();return;}
  $('notice').innerHTML='';
  $('resultBody').innerHTML='<p>Loading…</p>';
  await LocalTiles.show({},revision);
@@ -108,36 +114,28 @@ function informationPanel(info,p){
  </details></section>`;
 }
 function drawCov(p,id='covMap',tip='covTip'){let cv=$(id),cx=cv.getContext('2d'),n=p.dilution_covariance.length,w=cv.width/n;for(let i=0;i<n;i++)for(let j=0;j<n;j++){let v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]),r=den?v/den:0,a=Math.min(1,Math.abs(r)),color=r<0?[7,125,158]:[244,120,31];cx.fillStyle=`rgb(${color.map(c=>Math.round(255+(c-255)*a)).join(',')})`;cx.fillRect(j*w,i*w,w+.3,w+.3)}cv.onmousemove=e=>{let b=cv.getBoundingClientRect(),j=Math.min(n-1,Math.floor((e.clientX-b.left)/b.width*n)),i=Math.min(n-1,Math.floor((e.clientY-b.top)/b.height*n)),v=p.dilution_covariance[i][j],den=Math.sqrt(p.dilution_covariance[i][i]*p.dilution_covariance[j][j]);$(tip).innerHTML=`<p>${esc(p.coordinate_order[i].category)} · ${esc(names[p.coordinate_order[i].component])}<br>with ${esc(p.coordinate_order[j].category)} · ${esc(names[p.coordinate_order[j].component])}</p><p>Correlation: <strong>${den?fmt(v/den):'Undefined (zero variance)'}</strong><br>Covariance: ${fmt(v)} (fraction²)</p>`}}
-function planeLabel(p){return p==='main_detector'?'Main detector · all quartz tiles':p==='circle'?'ShowerMax':p==='full_plane'?'ShowerMax virtual plane 30':/^ring[1-6]$/.test(p)?'Ring '+p[4]+' · quartz tiles':p.replaceAll('_',' ')}
-function detectorPlanes(planes){planes=planes.filter(p=>p!=='full_plane');return [...planes.filter(p=>p==='main_detector'),...planes.filter(p=>p!=='main_detector')]}
+function planeLabel(p){return p==='main_detector'?'Main detector':p==='circle'?'ShowerMax':p==='full_plane'?'ShowerMax virtual plane 30':/^ring[1-6]$/.test(p)?'Ring '+p[4]+' · quartz tiles':p.replaceAll('_',' ')}
+function detectorPlanes(planes){planes=planes.filter(p=>p!=='full_plane'&&!p.endsWith('_bf')&&!p.endsWith('_ff'));return [...planes.filter(p=>p==='main_detector'),...planes.filter(p=>p!=='main_detector')]}
 async function fetchMap(name,plane,tile=''){let response=detectorResponse,key=[name,plane,tile,response].join('|');if(cache.has(key))return cache.get(key);let d=await api('maps',{run:name,plane,tile,response});cache.set(key,d);while(cache.size>5)cache.delete(cache.keys().next().value);return d}
+let detectorWorkspace=null;
 async function loadMap(){
- let token=++mapRevision,plane=$('plane').value||'main_detector',tile=plane==='circle'?$('tile').value||'':'';
- $('identity').textContent='';$('mapScope').textContent='Loading saved map…';$('regionTable').innerHTML='';$('rawMap').getContext('2d').clearRect(0,0,$('rawMap').width,$('rawMap').height);
- let d=await fetchMap(run,plane,tile);if(token!==mapRevision)return;mapData=d;
- const planes=detectorPlanes(d.planes);
- $('plane').innerHTML=planes.map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');$('plane').value=planes.includes(plane)?plane:planes[0];
- $('tile').innerHTML='<option value="">All response planes</option>'+d.tiles.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');$('tile').value=tile;$('tile').parentElement.hidden=plane!=='circle';
- if(!planes.includes(plane)&&planes.length){await loadMap();return}
- $('foldSectors').disabled=!!tile||!Number.isFinite(d.mirror_axis_rad);
- drawMaps(d);
+ if(!detectorWorkspace)detectorWorkspace=new DetectorWorkspace($('maps'),{
+  map:(name,plane)=>fetchMap(name,plane,''),
+  surfaces:loadSurfaceMaps,histograms:name=>api('pe-histograms',{run:name}),
+  mode:()=>detectorResponse,signal:()=>signalDisplay,setSignal:value=>signalDisplay=value,
+  setAggregation:value=>regionAggregation=value,regionPanel,units:displaySignal,number:fmt,planeLabel,
+  onMap:d=>{mapData=d;}
+ });
+ await detectorWorkspace.show(run);
 }
+
 function dense(d){let a=new Float64Array(d.grid.nx*d.grid.ny);for(let[x,y,v]of d.bins)if(x>=0&&y>=0&&x<d.grid.nx&&y<d.grid.ny)a[y*d.grid.nx+x]+=v;return a}
 function compactUncertainty(estimate,error){
  $('identity').textContent=error==null?'MC error unavailable':estimate>0?'MC ±'+fmt(error/estimate*100,3)+'%':'MC ±'+fmt(error,3);
  $('identity').title='One Monte Carlo standard error on the selected signal; model and normalization systematics are separate.';
 }
-function drawMaps(d=mapData){
- if(!d)return;let raw=dense(d),folded=$('foldSectors').checked&&!$('foldSectors').disabled;
- let display=folded?M.fold(raw,d.grid.nx,d.mirror_axis_rad):raw;
- $('mapTitle').textContent='Particle Entries Only'; $('mapTitle').hidden=false;
- if(window.HitMap3D){loadMainSurface(d)}else drawMap('rawMap',display,d.grid,Math.max(...display,1e-30),false,d.unit);
- let a=d.signal_summary||d.interaction_summary||{estimate:M.sum(raw),standard_error:null};
- compactUncertainty(a.estimate,a.standard_error);
- const units=displaySignal(d.unit);
- $('mapScope').innerHTML=`<strong>${fmt(a.estimate*units.factor)}${a.standard_error==null?'':' ± '+fmt(a.standard_error*units.factor,3)} ${esc(units.unit)}</strong>${d.normalization?.display_current_uA!=null?' · '+fmt(d.normalization.display_current_uA,3)+' µA beam':''}`;
- $('regionTable').innerHTML=regionPanel(d);
-}
+function drawMaps(){detectorWorkspace?.updateDisplay();}
+
 let tileAnalysisView=null;
 async function showAnalysis(){if(!tileAnalysisView)tileAnalysisView=new TileAnalysis.AnalysisView($('analysis'),{load:name=>api('pe-histograms',{run:name})});$('analysisCampaign').append($('analysisSelection'));await tileAnalysisView.show(run);}
 let mainSurfaceView=null,secondarySurfaceView=null,surfaceRevision=0;
@@ -219,7 +217,8 @@ function quartzBreakdown(q){
  return '<h2>Direction at tiles</h2><p class="statusline">'+(q.selection==='main_pe_response'?'PE weighted signal':'Rate weighting')+' · ±1σ MC</p>'+table(['Population','Signal share','Sample entries'],rows.map(([label,row])=>[label,value(row),row?row.entries.toLocaleString():'Unavailable']));
 }
 
-let secondaryRevision=0,secondaryState={plane:'main_detector',momentum:'all',normalization:'total',region:'all',source:null};
+let secondaryPanel='sources';
+let secondaryRevision=0,secondaryState={plane:'main_detector',ring:'all',momentum:'all',normalization:'total',regions:['open','closed','transition'],source:null,tile:null};
 const sourceMapCache=new Map();
 async function loadSourceMap(name,plane,response=detectorResponse){
  const key=name+'|'+plane+'|'+response;
@@ -230,33 +229,69 @@ async function loadSourceMap(name,plane,response=detectorResponse){
  }return sourceMapCache.get(key);
 }
 async function loadSecondaries(){
- const token=++secondaryRevision;let sourceDrawRevision=0;const sourceRun=run,sourceResponse=detectorResponse;$('volumeMomentum').disabled=true;
+ // Preserve the region controls when the generated workspace is replaced.
+ document.querySelector('#secondaries .secondaryScopeControls').prepend($('secondaryRegions'));
+ secondaryState.tile=null;
+ const token=++secondaryRevision;let sourceDrawRevision=0,tileProducts=null;const sourceRun=run,sourceResponse=detectorResponse;$('volumeMomentum').disabled=true;
+ for(const box of $('secondaryRegions').querySelectorAll('input')){box.disabled=true;box.onchange=null;}
  secondarySurfaceView?.dispose();secondarySurfaceView=null;
  $('secondaryDetails').innerHTML='<p>Loading secondaries…</p>';
  const d=await fetchMap(run,secondaryState.plane,'');if(token!==secondaryRevision)return;
- $('secondaryPlane').innerHTML=detectorPlanes(d.planes).filter(p=>!p.endsWith('_bf')&&!p.endsWith('_ff')).map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');
- $('secondaryPlane').value=secondaryState.plane;
+ $('secondaryPlane').innerHTML=['main_detector','circle'].filter(p=>d.planes.includes(p)).map(p=>`<option value="${esc(p)}">${esc(planeLabel(p))}</option>`).join('');
+ $('secondaryPlane').value=secondaryState.plane==='circle'?'circle':'main_detector';
+ $('secondaryRing').value=secondaryState.ring;$('secondaryRing').parentElement.hidden=secondaryState.plane==='circle';$('secondaryResponse').parentElement.hidden=secondaryState.plane==='circle';
  const h=d.histograms?.available?d.histograms.data:null;
  if(!h){$('secondaryDetails').innerHTML=warning(d.histograms?.reason||'Secondary analysis unavailable.');return;}
  secondaryFrame=secondaryMapFrame(h);
  $('volumeMomentum').disabled=false;
  $('secondarySelectionNote').textContent='';
- $('secondaryDetails').innerHTML=`<div class="mapGrid secondaryWorkspace"><article class="secondaryMapPanel"><div class="secondaryMapHeading"><div><h2>Secondary hit map</h2><p class="entryLabel">Particle Entries Only</p></div>${signalToggle(d.unit)}<button id="clearSecondarySource" hidden>All sources</button></div><div id="secondarySurfaceMap" class="surfaceMap"></div><canvas id="secondaryMap" width="620" height="570" hidden></canvas><p id="secondaryMapScope" class="statusline"></p></article><article class="secondarySourcesPanel"><h2>Secondary creation volumes</h2><p id="volumeBasis" class="statusline"></p><div id="volumePlot"></div><div id="selectedSourceDetails" aria-live="polite"></div></article></div><div class="secondaryEnergyDirections"><article><h2>Secondary kinetic energy</h2><canvas id="energyPlot" width="650" height="410"></canvas><p id="energyStatus" class="statusline" hidden></p></article>${h.quartz?'<article class="directionTable">'+quartzBreakdown(h.quartz)+'</article>':''}</div>`;
- for(const [id,key] of [['volumeMomentum','momentum'],['volumeRegion','region'],['volumeNormalization','normalization']]){
+ $('secondaryDetails').innerHTML=`<div class="detectorWorkspace">
+ <article class="workspaceMap"><div class="mapColorControls"><span class="secondaryPatternTitle">Secondary hit pattern</span><button id="clearSecondarySource" hidden>All sources</button></div>
+ <div id="secondarySurfaceMap" class="surfaceMap"></div><canvas id="secondaryMap" width="620" height="570" hidden></canvas>
+ <div class="workspaceMapFooter"><p id="secondaryMapScope" class="statusline"></p>${signalToggle(d.unit).replace('regionToggle signalToggle','workspaceSignalUnits')}</div></article>
+ <article class="workspaceInspector"><div class="inspectorTabs" role="tablist" aria-label="Secondary details"><button role="tab" data-secondary-panel="sources" id="sourcesTab" aria-controls="secondarySourcesPanel" aria-selected="true">Creation volumes</button><button role="tab" data-secondary-panel="energy" id="energyTab" aria-controls="secondaryEnergyPanel" aria-selected="false" tabindex="-1">Kinematics</button></div>
+ <div class="secondaryTileControls"><label>Tile<select id="secondaryTile" disabled><option value="">All tiles</option></select></label><button id="clearSecondaryTile" hidden>All tiles</button></div>
+ <section id="secondarySourcesPanel" class="secondarySourcesPanel" role="tabpanel" aria-labelledby="sourcesTab"><p id="volumeBasis" class="statusline"></p><div id="volumePlot"></div><div id="selectedSourceDetails" aria-live="polite"></div></section>
+ <section id="secondaryEnergyPanel" role="tabpanel" aria-labelledby="energyTab" hidden><h2>Secondary kinetic energy</h2><canvas id="energyPlot" width="650" height="410"></canvas><p id="energyStatus" class="statusline" hidden></p>${h.quartz?'<article class="directionTable">'+quartzBreakdown(h.quartz)+'</article>':''}</section></article></div>`;
+ $('secondaryDetails').querySelector('.mapColorControls').prepend($('secondaryRegions'));
+ const setSecondaryPanel=panel=>{secondaryPanel=panel;for(const b of $('secondaryDetails').querySelectorAll('[data-secondary-panel]')){const active=b.dataset.secondaryPanel===panel;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;}$('secondarySourcesPanel').hidden=panel!=='sources';$('secondaryEnergyPanel').hidden=panel!=='energy';};
+ for(const button of $('secondaryDetails').querySelectorAll('[data-secondary-panel]'))button.onclick=()=>setSecondaryPanel(button.dataset.secondaryPanel);
+ $('secondaryDetails').querySelector('.inspectorTabs').onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const panel=e.key==='Home'?'sources':e.key==='End'?'energy':secondaryPanel==='sources'?'energy':'sources';setSecondaryPanel(panel);$('secondaryDetails').querySelector(`[data-secondary-panel="${panel}"]`).focus();};
+ setSecondaryPanel(secondaryPanel);
+
+ for(const [id,key] of [['volumeMomentum','momentum'],['volumeNormalization','normalization']]){
   $(id).value=secondaryState[key];$(id).onchange=()=>{secondaryState[key]=$(id).value;redraw()};
  }
- secondarySurfaceView=new HitMap3D.SurfaceView($('secondarySurfaceMap'));
+ for(const box of $('secondaryRegions').querySelectorAll('input')){box.disabled=false;box.checked=secondaryState.regions.includes(box.value);box.onchange=()=>{secondaryState.regions=RegionSelection.read($('secondaryRegions'));redraw()};}
+ secondarySurfaceView=new HitMap3D.SurfaceView($('secondarySurfaceMap'),{onSelect:det=>{secondaryState.tile=det;secondaryState.source=null;redraw()}});
+ $('secondaryTile').onchange=e=>{if(e.target.value)secondarySurfaceView.selectDetector(+e.target.value);else secondarySurfaceView.clearSelection()};
+ $('clearSecondaryTile').onclick=()=>secondarySurfaceView.clearSelection();
+ function tileRows(products){
+  const rows=new Map(products.flatMap(p=>p.rows).map(r=>[r.detector,r]));
+  return [...rows.values()].filter(r=>secondaryState.regions.includes(r.region)&&(secondaryState.plane==='circle'?r.system==='showermax':secondaryState.plane==='main_detector'?r.system!=='showermax':r.system===secondaryState.plane));
+ }
+ function populateSecondaryTiles(){
+  const rows=tileRows(tileProducts),select=$('secondaryTile');
+  if(secondaryState.tile!==null&&!rows.some(r=>r.detector===secondaryState.tile)){secondaryState.tile=null;secondarySurfaceView.selectedDetector=null;secondarySurfaceView.fit();}
+  select.innerHTML='<option value="">All tiles</option>'+['ring1','ring2','ring3','ring4','ring5','ring6','showermax'].map(system=>{const items=rows.filter(r=>r.system===system);return items.length?`<optgroup label="${system==='showermax'?'ShowerMax':'Ring '+system.slice(4)}">${items.map(r=>`<option value="${r.detector}">${r.detector} · ${esc(r.region)}</option>`).join('')}</optgroup>`:''}).join('');
+  select.disabled=!rows.length;select.value=secondaryState.tile??'';
+ }
+
+ const cameraBar=document.createElement('div');cameraBar.className='workspaceCameraBar';const toolbar=$('secondarySurfaceMap').querySelector('.surfaceToolbar'),navigation=$('secondarySurfaceMap').querySelector('.surfaceNavigation');toolbar.before(cameraBar);cameraBar.append(toolbar,navigation);
  $('clearSecondarySource').onclick=()=>{secondaryState.source=null;redraw()};
  function redraw(){
   $('secondaryDetails').querySelectorAll('[data-signal-display]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.signalDisplay===signalDisplay));b.onclick=()=>{signalDisplay=b.dataset.signalDisplay;redraw()}});
+  if(tileProducts)populateSecondaryTiles();
+  $('clearSecondaryTile').hidden=secondaryState.tile===null;
   const drawToken=++sourceDrawRevision;let fallback=false,sourceSubset=null;
   const fallbackMap=()=>{if(!sourceSubset||token!==secondaryRevision||drawToken!==sourceDrawRevision)return;const a=dense(sourceSubset);$('secondarySurfaceMap').hidden=true;$('secondaryMap').hidden=false;drawMap('secondaryMap',a,sourceSubset.grid,Math.max(...a,1e-30),false,sourceSubset.unit,null,true);$('secondaryMapScope').textContent='2D map · 3D data not yet extracted · '+signalText(sourceSubset.weight,sourceSubset.unit);};
   $('secondarySurfaceMap').hidden=false;$('secondaryMap').hidden=true;
-  const {momentum,region,normalization,source}=secondaryState;
+  const {momentum,normalization,source}=secondaryState;const region=RegionSelection.parameter(secondaryState.regions),regionLabel=RegionSelection.label(secondaryState.regions);
+  const direction=$('secondaryDetails').querySelector('.directionTable');if(direction){direction.hidden=region!=='all'||secondaryState.tile!==null;}
   $('clearSecondarySource').hidden=!source;
-  const regional=region==='all'?h:h.secondary_regions?.[region];
-  const selected=momentum==='all'?regional:regional?.secondary_momentum?.[momentum];
-  $('volumeBasis').textContent=(region==='all'?'All regions':region[0].toUpperCase()+region.slice(1))+' · '+(normalization==='total'?'of total signal':'of selected secondary signal');
+  if(!secondaryState.regions.length){secondarySurfaceView.clear('Select at least one region');$('volumePlot').innerHTML='';$('selectedSourceDetails').textContent='';$('volumeBasis').textContent='Select at least one region';$('secondaryMapScope').textContent='';$('energyPlot').hidden=true;$('energyStatus').hidden=true;return;}
+  const {regional,selected}=secondaryState.tile!==null&&tileProducts?HitMap3D.secondaryTileSummary(tileProducts,secondaryState.tile,{momentum,mode:sourceResponse}):RegionSelection.summary(h,secondaryState.regions,momentum);
+  $('volumeBasis').textContent=(secondaryState.tile!==null?'Tile '+secondaryState.tile:regionLabel)+' · '+(normalization==='total'?'of total signal':'of selected secondary signal');
   let sourceSelection=source;
   if(!selected)$('volumePlot').innerHTML=warning('Regional secondary analysis unavailable.');
   else {
@@ -271,16 +306,23 @@ async function loadSecondaries(){
   secondarySurfaceView.clear();
   loadSurfaceMaps(sourceRun,secondaryState.plane,sourceResponse).then(products=>{
    if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;
-   secondarySurfaceView.setData({...HitMap3D.aggregate(products,{secondary:true,source:sourceSelection,region,momentum,mode:sourceResponse,plane:secondaryState.plane}),signalDisplay});
+   if(!secondaryState.regions.length){secondarySurfaceView.clear('Select at least one region');return;}
+   tileProducts=products;populateSecondaryTiles();
+   secondarySurfaceView.setData({...HitMap3D.aggregate(products,{secondary:true,source:sourceSelection,region,momentum,mode:sourceResponse,plane:secondaryState.plane,detector:secondaryState.tile}),signalDisplay,regionFilter:secondaryState.regions});
   }).catch(error=>{if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;fallback=true;fallbackMap();});
   $('secondaryMapScope').textContent='Loading selection…';
+  if(secondaryState.tile!==null&&tileProducts){
+   const subset=HitMap3D.aggregate(tileProducts,{secondary:true,source:sourceSelection,region,momentum,mode:sourceResponse,plane:secondaryState.plane,detector:secondaryState.tile});
+   $('secondaryMapScope').textContent='Tile '+secondaryState.tile+' · '+signalText(subset.total,subset.unit);
+   $('energyPlot').hidden=true;$('energyStatus').hidden=false;$('energyStatus').textContent='Kinetic energy spectrum unavailable for individual tiles.';return;
+  }
   $('energyPlot').hidden=true;$('energyStatus').hidden=false;$('energyStatus').textContent='Loading selection…';
   loadSourceMap(sourceRun,secondaryState.plane,sourceResponse).then(data=>{
    if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;
    const subset=M.selectSourceMap(data,sourceSelection,region,momentum),values=dense(subset);
    sourceSubset=subset;
    // Source/energy summaries retain their verified totals; spatial bins are loaded separately.
-   $('secondaryMapScope').textContent=(source?source+' · ':'')+signalText(subset.weight,subset.unit)+' · '+(region==='all'?'All regions':region)+' · '+momentum+' momentum · 10 mm surface bins';if(fallback)fallbackMap();
+   $('secondaryMapScope').textContent=signalText(subset.weight,subset.unit);if(fallback)fallbackMap();
    if(!subset.energy){$('energyStatus').textContent='Matching energy spectrum unavailable; updated extraction required.';return;}
    $('energyPlot').hidden=false;$('energyStatus').hidden=true;drawEnergy(subset);
   }).catch(error=>{if(token!==secondaryRevision||drawToken!==sourceDrawRevision)return;$('secondaryMapScope').textContent=error.message||error;$('energyStatus').textContent='Matching energy spectrum unavailable.';});
@@ -295,14 +337,14 @@ function compactSecondaryVolumes(groups){
  for(const g of rows){if(covered<total*.95||g.name==='Downstream window & flange'){kept.push(g);covered+=g.fraction}else rest.push(g)}
  if(!kept.some(g=>g.name==='Downstream window & flange'))kept.push({name:'Downstream window & flange',fraction:0,members:[],volume_count:0,remaining_fraction:0});
  const fraction=M.sum(rest.map(g=>g.fraction)),members=rest.flatMap(g=>g.members).sort((a,b)=>b[1]-a[1]).slice(0,3);
- return [...kept,...(rest.length?[{name:'Other volumes',source_names:rest.map(g=>g.name),fraction,members,volume_count:M.sum(rest.map(g=>g.volume_count)),remaining_fraction:Math.max(0,fraction-M.sum(members.map(m=>m[1])))}]:[])];
+ return [...kept,...(rest.length?[{name:'Other volumes',source_names:rest.map(g=>g.name),fraction,members,volume_count:rest.every(g=>g.volume_count!=null)?M.sum(rest.map(g=>g.volume_count)):null,details_unavailable:rest.some(g=>g.details_unavailable),details_reason:rest.find(g=>g.details_reason)?.details_reason,remaining_fraction:Math.max(0,fraction-M.sum(members.map(m=>m[1])))}]:[])];
 }
 function drawVolumes(h,onSelect=null,activeSource=null){
  if(onSelect){
   const groups=h.volume_groups||[],max=Math.max(...groups.map(g=>g.fraction),.001)*1.08;
   $('volumePlot').innerHTML=groups.length?'<div class="volumeRows">'+groups.map(g=>`<button type="button" class="volumeRow sourceChoice" data-source="${esc(g.name)}" aria-pressed="${g.name===activeSource}"><span>${esc(g.name)}</span><span class="volumeTrack"><i style="width:${g.fraction/max*100}%"></i></span><strong>${fmt(g.fraction*100,3)}%</strong></button>`).join('')+'</div>':'<div class="empty">No selected signal in this sample.</div>';
   const group=groups.find(g=>g.name===activeSource);
-  $('selectedSourceDetails').innerHTML=group?`<strong>${esc(group.name)}</strong><span class="sourceCount">${group.volume_count} creation volumes</span><div class="sourceMembers">${group.members.map(([n,f])=>`<div><span title="${esc(n)}">${esc(n)}</span><b>${fmt(f*100,3)}%</b></div>`).join('')}</div>`:'<span>Select a source to isolate its hits.</span>';
+  $('selectedSourceDetails').innerHTML=group?`<strong>${esc(group.name)}</strong><span class="sourceCount">${group.details_unavailable?(group.details_reason||'Select one region for individual volumes.'):group.volume_count+' creation volumes'}</span><div class="sourceMembers">${group.members.map(([n,f])=>`<div><span title="${esc(n)}">${esc(n)}</span><b>${fmt(f*100,3)}%</b></div>`).join('')}</div>`:'<span>Select a source to isolate its hits.</span>';
   $('volumePlot').querySelectorAll('[data-source]').forEach(el=>el.onclick=()=>onSelect(el.dataset.source));return;
  }
 
@@ -312,27 +354,20 @@ function drawVolumes(h,onSelect=null,activeSource=null){
  if(onSelect)$('volumePlot').querySelectorAll('summary[data-source]').forEach(el=>el.onclick=e=>{e.preventDefault();onSelect(el.dataset.source)});
 }
 function drawEnergy(h){
- const cv=$('energyPlot'),cx=cv.getContext('2d'),L=72,R=625,T=35,B=325;cx.lineWidth=1;
- const edges=h.energy_edges_mev,values=Array.from(h.energy).slice(1,61),total=h.weight||1;
- cx.clearRect(0,0,cv.width,cv.height);
+ const cv=$('energyPlot'),edges=h.energy_edges_mev,values=Array.from(h.energy).slice(1,61),total=h.weight||1;
  if(!edges||edges.length!==values.length+1){$('energyStatus').hidden=false;$('energyStatus').textContent='Energy bin edges unavailable.';return;}
- const shares=values.map(v=>v/total*100),max=Math.max(...shares,.01)*1.12,xmax=edges[edges.length-1];
- const xmin=edges[0],logSpan=Math.log10(xmax/xmin);
- const x=e=>L+Math.log10(e/xmin)/logSpan*(R-L);
- cx.font='18px '+getComputedStyle(document.body).fontFamily;cx.fillStyle='#455065';cx.fillText('Signal / bin [%]',L,22);
- for(let j=0;j<=4;j++){const y=B-j/4*(B-T);cx.strokeStyle='#d9dee6';cx.beginPath();cx.moveTo(L,y);cx.lineTo(R,y);cx.stroke();cx.textAlign='right';cx.fillText(fmt(max*j/4,3),L-9,y+5);}
- for(let exponent=Math.ceil(Math.log10(xmin));exponent<=Math.floor(Math.log10(xmax));exponent++){const energy=10**exponent,xx=x(energy);cx.strokeStyle='#d9dee6';cx.beginPath();cx.moveTo(xx,T);cx.lineTo(xx,B);cx.stroke();cx.textAlign='center';cx.fillStyle='#455065';cx.fillText(energy.toLocaleString('en-US',{maximumFractionDigits:6}),xx,B+25);}
- // Plot the retained bin boundaries on a logarithmic axis. No synthetic rebinning.
- cx.strokeStyle='#077d9e';cx.lineWidth=2.5;cx.beginPath();cx.moveTo(x(edges[0]),B);
- shares.forEach((value,i)=>{const y=B-value/max*(B-T);cx.lineTo(x(edges[i]),y);cx.lineTo(x(edges[i+1]),y)});
- cx.lineTo(x(edges[edges.length-1]),B);cx.stroke();
- cx.fillStyle='#455065';cx.textAlign='center';cx.fillText('Kinetic energy [MeV] · log scale',(L+R)/2,385);
+ const shares=values.map(v=>v/total*100),max=Math.max(...shares,.01)*1.12;
+ HistogramAxes.energy(cv,{width:650,height:410,rect:[72,35,553,290],
+  x:{domain:[edges[0],edges[edges.length-1]],mode:'log'},y:{domain:[0,max],mode:'linear'},
+  edges:Array.from(edges),values:shares,color:'#077d9e',fill:false,font:18,
+  xLabel:'Kinetic energy [MeV]',yLabel:'Signal / bin [%]'});
 }
 
 let eventBank=null,selectedSector=0,particleMode='all',streamClock=0,streamStats={},animationFramePending=false;
 async function initTransport(){
+ $('transport').classList.remove('transportUnavailable');
  if(!$('trackRun').options.length){
-  let d=await api('transport-catalog');$('animationSummary').innerHTML=`Based on <strong>${(d.sample_totals.histories_scanned/1e6).toFixed(2)} million simulated events</strong>, with <strong>${d.sample_totals.crossing_paths.toLocaleString()} sampled track paths</strong> across ${d.runs.length} configurations.`;$('trackRun').innerHTML=d.runs.map(r=>`<option value="${esc(r.name)}">${esc(targetLabel(r.target)+' · '+(+r.energy_mev/1000)+' GeV · '+(names[r.channel]||r.channel)+(r.target==='lh2'?'':' · sieve '+r.sieve))}</option>`).join('');
+  let d=await api('transport-catalog');if(d.available===false){$('transport').classList.add('transportUnavailable');$('transportNotice').textContent=d.reason;return;}$('animationSummary').innerHTML=`Based on <strong>${(d.sample_totals.histories_scanned/1e6).toFixed(2)} million simulated events</strong>, with <strong>${d.sample_totals.crossing_paths.toLocaleString()} sampled track paths</strong> across ${d.runs.length} configurations.`;$('trackRun').innerHTML=d.runs.map(r=>`<option value="${esc(r.name)}">${esc(targetLabel(r.target)+' · '+(+r.energy_mev/1000)+' GeV · '+(names[r.channel]||r.channel)+(r.target==='lh2'?'':' · sieve '+r.sieve))}</option>`).join('');
   if(!d.runs.length){$('transportNotice').textContent='No prepared particle transport is available.';return}
   let selected=catalog.runs.find(r=>r.name===run),choice=(selected?.members||[run]).find(n=>d.runs.some(r=>r.name===n));if(choice)$('trackRun').value=choice;
   await loadTracks();
@@ -470,7 +505,11 @@ $('tracks').onpointermove=e=>{
 };
 for(let event of ['pointerup','pointercancel','lostpointercapture'])$('tracks').addEventListener(event,e=>{pointers.delete(e.pointerId);gestureStart()});
 $('tracks').oncontextmenu=e=>e.preventDefault();
-$('tracks').addEventListener('wheel',e=>{e.preventDefault();let b=$('tracks').getBoundingClientRect(),x=(e.clientX-b.left)*1200/b.width-600,y=(e.clientY-b.top)*550/b.height-275,scale=Math.max(8,Math.min(1800,camera.scale*Math.exp(-e.deltaY*.0015))),ratio=scale/camera.scale;camera.pan=[x-(x-camera.pan[0])*ratio,y-(y-camera.pan[1])*ratio];camera.scale=scale;queueTracks()},{passive:false});
+$('tracks').addEventListener('wheel',e=>{
+ // Wheel gestures can remain latched to the canvas after the pointer leaves it.
+ const canvas=$('tracks'),stage=canvas.closest('.transportStage'),b=canvas.getBoundingClientRect(),v=stage.getBoundingClientRect();
+ if(tab!=='transport'||e.clientX<Math.max(b.left,v.left)||e.clientX>=Math.min(b.right,v.right)||e.clientY<Math.max(b.top,v.top)||e.clientY>=Math.min(b.bottom,v.bottom)||document.elementFromPoint(e.clientX,e.clientY)!==canvas)return;
+ e.preventDefault();let x=(e.clientX-b.left)*1200/b.width-600,y=(e.clientY-b.top)*550/b.height-275,scale=Math.max(8,Math.min(1800,camera.scale*Math.exp(-e.deltaY*.0015))),ratio=scale/camera.scale;camera.pan=[x-(x-camera.pan[0])*ratio,y-(y-camera.pan[1])*ratio];camera.scale=scale;queueTracks()},{passive:false});
 $('tracks').onkeydown=e=>{let keys={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(keys[e.key]){e.preventDefault();let[x,y]=keys[e.key];if(e.shiftKey){camera.pan[0]+=x*25;camera.pan[1]+=y*25}else{camera.yaw+=x*.08;camera.pitch=Math.max(-1.5,Math.min(1.5,camera.pitch+y*.08))}queueTracks()}if(e.key==='Home'){e.preventDefault();resetCamera()}};
 $('trackColor').onchange=drawTracks;
 function scheduleAnimation(){if(animationFramePending)return;animationFramePending=true;requestAnimationFrame(animate)}
@@ -490,7 +529,7 @@ function eventCorrelationPanel(info,p){
  <p class="muted">Crossing-based statistical estimate · ${info.beam_days} beam days · ${100*info.polarization}% polarization. Excludes light-response and electronics noise. Simulation uncertainty on this comparison is not yet propagated.</p></section>`;
 }
 
-$('secondaryPlane').onchange=()=>{secondaryState.plane=$('secondaryPlane').value;loadSecondaries().catch(fail)};
+$('secondaryPlane').onchange=$('secondaryRing').onchange=()=>{secondaryState.ring=$('secondaryRing').value;secondaryState.plane=$('secondaryPlane').value==='circle'?'circle':secondaryState.ring==='all'?'main_detector':secondaryState.ring;secondaryState.source=null;secondaryState.tile=null;loadSecondaries().catch(fail)};
 
 // Keep visible prose free of word-joining hyphens; retain numeric signs and URLs.
 (()=>{
@@ -507,3 +546,5 @@ $('secondaryPlane').onchange=()=>{secondaryState.plane=$('secondaryPlane').value
 })();
 
 for(const id of ['mapsResponse','secondaryResponse'])$(id).onchange=()=>changeResponse($(id).value).catch(fail);
+
+$('deconVideoLink').onclick=e=>{e.preventDefault();history.replaceState(null,'','#overview');showTab('overview');window.scrollTo({top:0,behavior:'smooth'});};

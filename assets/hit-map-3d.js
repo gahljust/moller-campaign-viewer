@@ -8,7 +8,7 @@ const unwrapCamera={yaw:Math.PI,pitch:.60};
 const regions=['closed','transition','open'],directions=['forward','backward','zero','uncertain'];
 const sum=(a,b)=>a.map((v,i)=>v+b[i]),scale=(a,s)=>a.map(v=>v*s);
 function viridis(t){const s=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];t=Math.max(0,Math.min(.999999,t))*4;const i=Math.floor(t),f=t-i;return s[i].map((v,k)=>(v+(s[i+1][k]-v)*f)/255)}
-function aggregate(products,{secondary=false,source=null,region='all',momentum='all',mode='0',plane='main_detector'}={}){
+function aggregate(products,{secondary=false,source=null,region='all',momentum='all',mode='0',plane='main_detector',detector=null}={}){
  const first=products[0];if(!first)return null;
  const cells=new Map(),selected=Array.isArray(source)?new Set(source):source==null?null:new Set([source]);
  let total=0;
@@ -18,9 +18,10 @@ function aggregate(products,{secondary=false,source=null,region='all',momentum='
   for(const c of data.cells){
    if(secondary&&c[3]<0)continue;
    if(selected&&(c[3]<0||!selected.has(data.sources[c[3]])))continue;
-   if(region!=='all'&&regions[c[4]]!==region)continue;
+   if(region!=='all'&&!(Array.isArray(region)?region:[region]).includes(regions[c[4]]))continue;
    if(momentum!=='all'&&directions[c[5]]!==momentum)continue;
    const f=data.faces[c[0]];
+   if(detector!==null&&f.detector!==detector)continue;
    if(plane.endsWith('_bf')&&f.detector>=150000||plane.endsWith('_ff')&&f.detector<150000)continue;
    const value=c[column];if(value<=0)continue;
    const key=c.slice(0,3).join(',');const old=cells.get(key);
@@ -29,6 +30,17 @@ function aggregate(products,{secondary=false,source=null,region='all',momentum='
  }
  return {faces:first.faces,rows:first.rows,cell_mm:first.cell_mm,cells:[...cells.values()],total,plane,
   unit:plane==='circle'||mode==='2'?'PE/s':'crossings/s',linear:secondary};
+}
+// Additive source totals from detector-resolved entry cells. No region-to-tile inference.
+function secondaryTileSummary(products,detector,{momentum='all',mode='0'}={}){
+ let weight=0,secondaryWeight=0;const groups=new Map(),column=mode==='2'?7:6;
+ for(const data of products)for(const c of data.cells){
+  if(data.faces[c[0]].detector!==detector)continue;
+  const value=c[column];weight+=value;
+  if(value<=0||c[3]<0||(momentum!=='all'&&directions[c[5]]!==momentum))continue;
+  secondaryWeight+=value;const name=data.sources[c[3]];groups.set(name,(groups.get(name)||0)+value);
+ }
+ return {regional:{weight},selected:{secondary_weight:secondaryWeight,volume_groups:[...groups].map(([name,value])=>({name,fraction:secondaryWeight?value/secondaryWeight:0,members:[],remaining_fraction:0,details_unavailable:true,details_reason:'Individual volume names unavailable for this tile.'}))}};
 }
 function clipCell(face,x,y,size){
  let p=[[x*size,y*size],[(x+1)*size,y*size],[(x+1)*size,(y+1)*size],[x*size,(y+1)*size]];
@@ -157,7 +169,8 @@ class SurfaceView{
  setData(data){
   this.data=data;if(!this.gl)return;this.release();
   const plane=data.plane,allowed=f=>plane==='all_detectors'?true:plane==='main_detector'?f.system!=='showermax':plane==='circle'?f.system==='showermax':f.system===plane.slice(0,5)&&(!plane.endsWith('_bf')||f.detector<150000)&&(!plane.endsWith('_ff')||f.detector>=150000);
-  const selectedFaces=data.faces.filter(allowed);if(!selectedFaces.length){this.pickFaces=[];this.status('No detector geometry');return;}const zs=selectedFaces.map(f=>f.origin[2]),centerZ=(Math.min(...zs)+Math.max(...zs))/2;
+  const membership=new Map((data.rows||[]).map(r=>[r.detector,r.region])),inRegion=f=>(!data.regionFilter||data.regionFilter.includes(membership.get(f.detector)))&&(!data.systemFilter||data.systemFilter.includes(f.system));
+  const selectedFaces=data.faces.filter(f=>allowed(f)&&inRegion(f));if(!selectedFaces.length){this.pickFaces=[];this.status('No detector geometry');return;}const zs=selectedFaces.map(f=>f.origin[2]),centerZ=(Math.min(...zs)+Math.max(...zs))/2;
   this.unwrapLayout=unwrapGeometry(selectedFaces,centerZ);
   const world=p=>[p[0]/1000,p[1]/1000,(p[2]-centerZ)/1000];
   const vertex=(p,color,f)=>{const t=this.unwrapLayout.tiles.get(f.detector);return [...world(p),...color,...t.center,...t.target,t.angle];};
@@ -177,8 +190,8 @@ class SurfaceView{
    for(let j=0;j<p.length;j++)edges.push(...vertex(p[j],edgeColor,f),...vertex(p[(j+1)%p.length],edgeColor,f));
    if(f.detector===this.selectedDetector){const pp=f.polygon.map(uv=>point(f,uv,.06));for(let j=0;j<pp.length;j++)selectedEdges.push(...vertex(pp[j],[.77,.96,1],f),...vertex(pp[(j+1)%pp.length],[.77,.96,1],f));}
   }
-  if(!tileMetric){for(const c of data.cells)max=Math.max(max,c[3]);
-   for(const [fi,x,y,w] of data.cells){const f=data.faces[fi];if(!allowed(f))continue;const p=clipCell(f,x,y,data.cell_mm).map(uv=>point(f,uv,.035));if(p.length<3)continue;const t=data.linear?w/max:Math.log1p(w/max*999)/Math.log(1000);polygon(signal,p,viridis(t),f);}}
+  if(!tileMetric){for(const c of data.cells)if(allowed(data.faces[c[0]])&&inRegion(data.faces[c[0]]))max=Math.max(max,c[3]);
+   for(const [fi,x,y,w] of data.cells){const f=data.faces[fi];if(!allowed(f)||!inRegion(f)||(this.focusedDetector!==null&&f.detector!==this.focusedDetector))continue;const p=clipCell(f,x,y,data.cell_mm).map(uv=>point(f,uv,.035));if(p.length<3)continue;const t=data.linear?w/max:Math.log1p(w/max*999)/Math.log(1000);polygon(signal,p,viridis(t),f);}}
   this.buffer(background,this.gl.TRIANGLES);this.buffer(edges,this.gl.LINES);this.buffer(signal,this.gl.TRIANGLES);if(selectedEdges.length)this.buffer(selectedEdges,this.gl.LINES);
   this.status(tileMetric?'':data.total>0?'':'No hits for this selection');
   const legend=this.element.querySelector('.surfaceLegend');legend.hidden=!(max>0);
@@ -205,6 +218,6 @@ class SurfaceView{
  for(let i=0;i<2;i++){const d=this.pan[i]-c.pan[i];if(Math.abs(d)>.02){c.pan[i]+=d*alpha;moving=true}else c.pan[i]=this.pan[i];}
 const gl=this.gl,r=this.canvas.getBoundingClientRect();if(!r.width||!r.height)return;const dpr=Math.min(2,root.devicePixelRatio||1),w=Math.round(r.width*dpr),h=Math.round(r.height*dpr);if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h}gl.viewport(0,0,w,h);gl.clearColor(.047,.078,.125,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.useProgram(this.program);gl.uniform2f(this.uniforms.angle,c.yaw,c.pitch);gl.uniform2f(this.uniforms.screen,r.width,r.height);gl.uniform2f(this.uniforms.pan,...c.pan);gl.uniform1f(this.uniforms.zoom,c.zoom);gl.uniform1f(this.uniforms.unwrap,this.unwrapAmount);for(const m of this.meshes){gl.bindVertexArray(m.vao);gl.drawArrays(m.mode,0,m.count)}gl.bindVertexArray(null);this.drawAngles(r,dpr);if(moving)this.draw();});}
 }
-const api={SurfaceView,aggregate,clipCell,viridis,displaySignal,zoomCamera,rotatePoint,projectPoint,pickDetector,unwrapGeometry,unwrapPoint,unwrapCamera};
+const api={SurfaceView,aggregate,secondaryTileSummary,clipCell,viridis,displaySignal,zoomCamera,rotatePoint,projectPoint,pickDetector,unwrapGeometry,unwrapPoint,unwrapCamera};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.HitMap3D=api;
 })(typeof window!=='undefined'?window:globalThis);

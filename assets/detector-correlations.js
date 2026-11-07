@@ -1,11 +1,11 @@
 const $=id=>document.getElementById(id),D=window.DATA,C=D.C,rows=D.rows,cv=$('scene'),ctx=cv.getContext('2d');
 let focusGroup='all',correlationActive=true;
 const treatments={neutral:true,flat:false,outlines:false,glow:true,unwrapped:false};
-let selected=rows.findIndex(r=>r.detector===150252),mode='correlation',yaw=.93,pitch=.32,zoom=1,pan=[0,0],W=1,H=1,hitFaces=[],hover=-1,drag=null,maxValue=1,values=[],partners=[];
+let selected=Math.max(0,rows.findIndex(r=>r.detector===150252)),mode='correlation',yaw=.93,pitch=.32,zoom=1,pan=[0,0],W=1,H=1,hitFaces=[],hover=-1,drag=null,maxValue=1,values=[],partners=[];
 const label=r=>r.system==='showermax'?`ShowerMax ${r.detector}`:`Ring ${r.system.slice(4)} · ${r.detector}`;
 const group=r=>r.system==='showermax'?'ShowerMax':`Ring ${r.system.slice(4)}`;
 const world=p=>[p[0]/1000,p[1]/1000,(p[2]-22850)/1000];
-const centers=Array.from({length:252},()=>[0,0,0]),counts=Array(252).fill(0),faces=[];
+const centers=Array.from({length:rows.length},()=>[0,0,0]),counts=Array(rows.length).fill(0),faces=[];
 for(const m of D.meshes){const center=world(m.center);centers[m.index]=centers[m.index].map((v,i)=>v+center[i]);counts[m.index]++;for(const f of m.faces){const p=f.map(world),a=p[1].map((v,i)=>v-p[0][i]),b=p[2].map((v,i)=>v-p[0][i]),n=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],len=Math.hypot(...n)||1;faces.push({index:m.index,p,n:n.map(x=>x/len)})}}
 centers.forEach((p,i)=>centers[i]=p.map(v=>v/counts[i]));
 // Radial and longitudinal envelopes of the existing geometry, in metres.
@@ -28,7 +28,7 @@ let stripHeight=stripGroups.reduce((s,b)=>s+b.r1-b.r0+.35,0)-.35,stripY=stripHei
 for(const b of stripGroups){b.y=stripY-(b.r1-b.r0)/2;stripY-=b.r1-b.r0+.35;}
 // Cut halfway between neighboring channel centers near phi=0.
 // Each ring uses its own circumference; no seam-duplicate detectors.
-const ring5Angles=centers.filter((_,i)=>rows[i].system==='ring5').map(p=>(Math.atan2(p[1],p[0])+TAU)%TAU).sort((a,b)=>a-b);
+const ring5Angles=centers.filter((_,i)=>rows[i].system===(rows.some(r=>r.system==='ring5')?'ring5':'ring1')).map(p=>(Math.atan2(p[1],p[0])+TAU)%TAU).sort((a,b)=>a-b);
 const unwrapSeam=(ring5Angles[0]+ring5Angles.at(-1)-TAU)/2;
 const tileUnwrap=centers.map((c,i)=>{
  const b=stripGroups.find(b=>b.system===rows[i].system),phi=Math.atan2(c[1],c[0]);
@@ -88,7 +88,7 @@ function drawStripLabels(){
  ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle='#9ab4ca';ctx.font='12px system-ui';ctx.textAlign='right';
  for(const b of stripGroups){
   const anchor=project([-Math.PI*b.radius-.12,b.y,0]);
-  ctx.fillText(b.system==='showermax'?'ShowerMax':`Ring ${b.j+1}`,anchor[0],anchor[1]+4);
+  ctx.fillText(b.system==='showermax'?'ShowerMax':`Ring ${b.system.slice(4)}`,anchor[0],anchor[1]+4);
  }
  ctx.restore();
 }
