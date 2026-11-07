@@ -15,7 +15,7 @@ window.ViewerDatasets=(()=>{
  }
  function sync(tab){
   const choice=document.getElementById('datasetChoice');
-  if(tab==='results'&&!panel)document.getElementById('deconToolbar').prepend(choice);else if(tab==='maps'||tab==='secondaries')document.querySelector('#'+tab+' .workspaceHeading').prepend(choice);else document.getElementById('datasetHome').after(choice);
+  if(tab==='results'&&!panel)document.getElementById('deconToolbar').prepend(choice);else if(tab==='maps'||tab==='secondaries')document.querySelector('#'+tab+' .workspaceHeading').prepend(choice);else if(tab==='transport'&&document.querySelector('#transport .studySetup'))document.querySelector('#transport .studySetup').prepend(choice);else document.getElementById('datasetHome').after(choice);
   document.getElementById('compareDatasets').hidden=tab!=='results';
   document.getElementById('datasetChoice').hidden=panel||tab==='changelog'||tab==='statistics'||tab==='overview';
   document.getElementById('datasetDetails').textContent=active==='farm'&&!['results','overview','statistics','changelog'].includes(tab)?(tab==='secondaries'?'Origins inferred from creation vertices · trigger scintillators included.':'Trigger scintillators included.') : '';

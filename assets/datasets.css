@@ -4,7 +4,7 @@
 .datasetChoice button[aria-pressed=true]{background:#077d9e;color:#fff;border-color:#077d9e}
 .datasetChoice small{color:#687482;font-size:12px;margin-left:4px}
 .datasetLoading .view{opacity:.25;pointer-events:none}
-#transport.transportUnavailable>:not(.heading):not(#transportNotice){display:none!important}
+#transport.transportUnavailable>:not(.heading):not(#transportNotice):not(.studySetup){display:none!important}
 .datasetCompare{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
 .datasetCompare>section{min-width:0;border:1px solid #dce3eb;border-radius:8px;overflow:hidden}
 .datasetCompare>section>h2{font-size:18px;padding:18px 20px;margin:0;background:#f3f6f8;border-bottom:3px solid #077d9e}
@@ -32,3 +32,6 @@ body:has(.datasetCompare) main{max-width:1800px;padding-left:20px;padding-right:
 .datasetCompare{grid-template-columns:repeat(2,minmax(460px,1fr));overflow-x:auto}
 .comparisonPanel .responseChoice .heading{display:flex;gap:16px;flex-wrap:wrap}
 .comparisonPanel .responseChoice select{max-width:240px}
+
+#transport.transportUnavailable .studySetup>label{display:none}
+.datasetLoading #datasetChoice,.datasetLoading #datasetChoice *{pointer-events:auto;opacity:1}

@@ -12,6 +12,24 @@ import publish
 
 
 class PublishGuards(unittest.TestCase):
+    def test_styles_and_scripts_resolve_beneath_pages_subdirectory(self):
+        from html.parser import HTMLParser
+        from urllib.parse import urljoin, urlsplit
+        class Assets(HTMLParser):
+            def __init__(self): super().__init__(); self.urls = []
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'script' and 'src' in attrs: self.urls.append(attrs['src'])
+                if tag == 'link' and attrs.get('rel') == 'stylesheet': self.urls.append(attrs['href'])
+        for source in (publish.HERE / 'assets').glob('*.html'):
+            page = '/moller-campaign-viewer/' + ('' if source.name == 'index.html' else 'assets/') + source.name
+            parser = Assets(); parser.feed(source.read_text())
+            for value in parser.urls:
+                target = urlsplit(urljoin('https://example.test' + page, value))
+                self.assertTrue(target.path.startswith('/moller-campaign-viewer/'), value)
+                rel = target.path.removeprefix('/moller-campaign-viewer/')
+                self.assertTrue((publish.HERE / rel).is_file(), rel)
+
     def test_local_branch_and_dirty_source_are_rejected(self):
         for replies in (['main'], ['shared-viewer', ' M assets/app.js']):
             with patch.object(publish, 'command', side_effect=replies):
