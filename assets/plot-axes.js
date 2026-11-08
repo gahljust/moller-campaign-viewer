@@ -156,7 +156,7 @@
       });
     }
     mount() {
-      const name = this.img.getAttribute('src').split('/').pop().replace('.png', '');
+      const name = this.img.getAttribute('src').split(/[?#]/)[0].split('/').pop().replace('.png', '');
       if (name === this.name) return;
       const model = catalog.figures[name]; if (!model) return;
       this.name = name; this.model = model;

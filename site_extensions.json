@@ -662,8 +662,8 @@
       "bytes": 1394079
     },
     "statistics/index.html": {
-      "sha256": "47329fdbe4a39ef7aad90d34b330dac90752413138948b6d18ae77caf5c69a41",
-      "bytes": 5840
+      "sha256": "ac64febfa1278a57520782e5705cdce1ef5a6c78fb5d9283e4cbd9927d464337",
+      "bytes": 5915
     },
     "statistics/plots/plot-axes.css": {
       "sha256": "da4317d81b51576f27d1ae2d84c1df77f744e356a26062a796463bd24e7285e2",
@@ -690,8 +690,8 @@
       "bytes": 630532
     },
     "statistics/plots/plot-axes.js": {
-      "sha256": "b2127632d69c8667e689690b32866eb0d4f72932734e63fca4e75a5688e11241",
-      "bytes": 21417
+      "sha256": "76522c58de009fd852d5b0f844efdbfb0a445b981960233145652f066d73573e",
+      "bytes": 21434
     },
     "statistics/plots/PE_RSE_ring_2.png": {
       "sha256": "7a81af2ed293819c293143681088cc117be6d6054d0161fa9fcd2e3e1ce85f2e",
