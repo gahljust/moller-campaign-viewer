@@ -313,14 +313,16 @@
           ctx.beginPath();let pen=false;
           for(const [a,b]of points){if(!Number.isFinite(a)||!Number.isFinite(b)){pen=false;continue;}
             if(pen)ctx.lineTo(a,b);else ctx.moveTo(a,b);pen=true;}
+          if(line.white_halo){ctx.save();ctx.strokeStyle='white';ctx.lineWidth+=line.white_halo;ctx.stroke();ctx.restore();}
           ctx.stroke();
         }
-        if(line.marker==='o'||line.marker==='s'){
+        if(['o','s','^'].includes(line.marker)){
           ctx.setLineDash([]);ctx.strokeStyle=rgba(line.marker_edge);ctx.fillStyle=rgba(line.marker_face);ctx.lineWidth=line.marker_width;
           const radius=line.marker_size/2;ctx.beginPath();
           for(const[a,b]of points){
             if(!Number.isFinite(a)||!Number.isFinite(b)||a<x-radius||a>x+w+radius||b<y-radius||b>y+h+radius)continue;
             if(line.marker==='o'){ctx.moveTo(a+radius,b);ctx.arc(a,b,radius,0,2*Math.PI);}
+            else if(line.marker==='^'){ctx.moveTo(a,b-radius);ctx.lineTo(a+radius,b+radius);ctx.lineTo(a-radius,b+radius);ctx.closePath();}
             else ctx.rect(a-radius,b-radius,2*radius,2*radius);
           }
           if(line.marker_face[3])ctx.fill();if(line.marker_edge[3])ctx.stroke();
