@@ -111,11 +111,11 @@ body:has(#siteHeader)>main{padding:26px 40px 40px}
 }
 
 /* One complete correlation workspace per viewport, including its readouts. */
-#detectorExplorer{padding-top:0;border-top:0;scroll-margin-top:calc(var(--site-header-height,82px) + 12px)}
+#detectorExplorer{padding-top:0;border-top:0;margin-top:20px;scroll-margin-top:calc(var(--site-header-height,82px) + 12px)}
 #detectorExplorer .detectorCorrelationsFrame{height:calc(100dvh - var(--site-header-height,82px) - 24px);min-height:0;margin:0}
 
 
-/* Each matrix tab is one viewport-sized workspace, with compact support text. */
+/* Long tables and heatmaps use a viewport; short results use their content height. */
 .matrixWorkspace{height:calc(100dvh - var(--site-header-height,82px) - 24px);display:flex;flex-direction:column;min-height:0;scroll-margin-top:calc(var(--site-header-height,82px) + 12px)}
 #results .matrixWorkspace>.matrixTabs{flex:none;margin:0 0 12px}
 #results .matrixWorkspace>.matrixTabs button{padding:9px 0}
@@ -241,3 +241,7 @@ body:has(#siteHeader)>main{padding:26px 40px 40px}
 .correlationsPanel #deconToolbar,.correlationsPanel .deconIntro,.correlationsPanel .matrixWorkspace{display:none!important}
 .comparisonPanel.correlationsPanel #detectorExplorer{display:block;height:100%;margin:0;padding:0}
 .correlationsPanel #detectorExplorer .detectorCorrelationsFrame{height:100%;border:0;border-radius:0}
+
+.matrixWorkspace.compactMatrix{height:auto}
+#results .matrixWorkspace.compactMatrix>.matrixPanel{flex:none}
+.datasetCompare iframe[data-compact="true"]{height:var(--comparison-content-height)!important}

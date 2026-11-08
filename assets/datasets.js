@@ -47,8 +47,8 @@ window.ViewerDatasets=(()=>{
   document.querySelectorAll('[data-dataset]').forEach(b=>b.onclick=()=>choose(b.dataset.dataset).catch(fail));
   sync(tab);
   if(panel&&!correlationPanel){
-   let last=0,scheduled=false;
-   const height=()=>{scheduled=false;const h=Math.ceil(document.querySelector('main').getBoundingClientRect().height+32);if(h!==last){last=h;parent.postMessage({type:'decon-height',dataset:active,height:h},location.origin)}};
+   let last='',scheduled=false;
+   const height=()=>{scheduled=false;const h=Math.ceil(document.querySelector('main').getBoundingClientRect().height+8),compact=!!document.querySelector('.matrixWorkspace.compactMatrix'),key=`${h}:${compact}`;if(key!==last){last=key;parent.postMessage({type:'decon-height',dataset:active,height:h,compact},location.origin)}};
    new ResizeObserver(()=>{if(!scheduled){scheduled=true;requestAnimationFrame(height)}}).observe(document.getElementById('resultBody'));
    let lastData=null;
    new MutationObserver(()=>{
@@ -83,7 +83,7 @@ window.ViewerDatasets=(()=>{
   const frames=[...document.querySelectorAll('.datasetCompare iframe')];
   if(!frames.some(f=>f.contentWindow===e.source))return;
   if(e.data?.type==='decon-height'){
-   const frame=frames.find(f=>f.contentWindow===e.source);frame.style.height=Math.min(9000,Math.max(450,e.data.height))+'px';
+   const frame=frames.find(f=>f.contentWindow===e.source);frame.dataset.compact=String(e.data.compact===true);frame.style.setProperty('--comparison-content-height',Math.min(9000,Math.max(1,e.data.height))+'px');
   }else if(e.data?.type==='decon-scales'){
    scales.set(e.data.dataset,e.data);
    const a=scales.get('current'),b=scales.get('farm');

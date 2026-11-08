@@ -85,10 +85,11 @@ const LocalTiles=(()=>{
   window.DetectorCorrelationData={rows:tileResponse.rows,C:tileResponse.forecast.category_asymmetry_covariance_ppb2,histories:data.histories};
   window.DisplayCovarianceData={rows:data.rows,C:f.category_asymmetry_covariance_ppb2,grouping:deconGrouping,configuration:deconConfiguration};
   window.ComparisonCovarianceMaximum=null;
-  const detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.loading='lazy';detectorFrame.src='assets/detector-correlations.html?v=2d7efb6dc6b5'+(document.documentElement.classList.contains('correlationsPanel')?'&compact=1':'');explorer.append(detectorFrame);
+  const detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.loading='lazy';detectorFrame.src='assets/detector-correlations.html?v=b78f07b8e445'+(document.documentElement.classList.contains('correlationsPanel')?'&compact=1':'');explorer.append(detectorFrame);
   const buttons=[...tablist.children];
   function selectMatrix(id,focus=false,align=false){
    activeMatrix=id;
+   workspace.classList.toggle('compactMatrix',['deconvolution','asymmetry','response'].includes(id));
    tabs.forEach(([key],i)=>{const selected=key===id;panels[i].hidden=!selected;buttons[i].setAttribute('aria-selected',String(selected));buttons[i].tabIndex=selected?0:-1;if(selected&&focus)buttons[i].focus()});
    requestAnimationFrame(()=>{fitMatrixCanvases();if(align&&!ViewerDatasets.panel)workspace.scrollIntoView({block:"start",behavior:"smooth"})});
   }
