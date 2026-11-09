@@ -35,7 +35,7 @@ const LocalTiles=(()=>{
   resultData={...saved,individual_tiles:data,combined_forecast:{covariance_ppb2:combined,standard_error_ppb:combined.map((r,i)=>Math.sqrt(r[i])),method:'Projected experimental statistics plus independent template MC covariance; first-order propagation at the simulated reference, fixed forecast weights.'}};
   $('resultTitle').textContent='Deconvolution';
   $('resultScope').innerHTML=`<b>LH2 · 11 GeV</b><span>${isRegion?`${replaced?15:22} main regions + 3 ShowerMax regions`:`${replaced?140:224} quartz tiles + 28 ShowerMax modules`}</span>`;
-  $('resultBody').innerHTML=`<section class="resultSection deconvolutionLead"><div class="editorialResultHeading"><div><h2>Deconvolution matrix M</h2><p class="resultMeta">${esc(sampleLabel)}</p></div>
+  $('resultBody').innerHTML=`<section class="resultSection deconvolutionLead"><div class="editorialResultHeading"><div><h2>Deconvolution matrix M</h2><p class="resultMeta deconDatasetLine"><span>${esc(sampleLabel)}</span><span>Want to run this yourself? <a href="https://github.com/gahljust/gdml-geometry-viewer" target="_blank" rel="noopener noreferrer">Analysis tool here.</a></span></p></div>
    <div class="deconvolutionEquation"><span>M = Hᵀ C⁻¹ H</span><span>5 interactions × 5 interactions · ppb⁻²</span></div></div>
    <p class="resultMeta">H is the asymmetry-adjusted dilution matrix. C includes same-event correlations across ${data.rows.length} ${isRegion?'ring and region groups':'detector channels'}.</p>
    ${matrix(f.matrix)}
@@ -71,6 +71,7 @@ const LocalTiles=(()=>{
   tablist.innerHTML=tabs.map(([id,label])=>`<button id="matrixTab-${id}" role="tab" aria-controls="matrixPanel-${id}" data-matrix="${id}">${label}</button>`).join('');
   const explorer=document.createElement('section');explorer.id='detectorExplorer';explorer.className='detectorExplorer';explorer.setAttribute('aria-label','Detector correlations');
   const workspace=document.createElement('div');workspace.className='matrixWorkspace';workspace.id='matrixWorkspace';workspace.append(tablist,...panels);$('resultBody').append(workspace,explorer);
+  const toolFooter=document.createElement('p');toolFooter.className='analysisToolFooter';toolFooter.innerHTML='Want to view your own ROOT files this way? <a href="https://github.com/gahljust/gdml-geometry-viewer" target="_blank" rel="noopener noreferrer">Analysis/Viewing tool here.</a>';$('resultBody').append(toolFooter);
   {
    const control=document.createElement('section');control.className='resultSection responseChoice';
    const choices=data.response_options||[{id:'0',label:'Rate weighting'}];
@@ -85,7 +86,7 @@ const LocalTiles=(()=>{
   window.DetectorCorrelationData={rows:tileResponse.rows,C:tileResponse.forecast.category_asymmetry_covariance_ppb2,histories:data.histories};
   window.DisplayCovarianceData={rows:data.rows,C:f.category_asymmetry_covariance_ppb2,grouping:deconGrouping,configuration:deconConfiguration};
   window.ComparisonCovarianceMaximum=null;
-  const detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.loading='lazy';detectorFrame.src='assets/detector-correlations.html?v=b78f07b8e445'+(document.documentElement.classList.contains('correlationsPanel')?'&compact=1':'');explorer.append(detectorFrame);
+  const detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.loading='lazy';detectorFrame.src='assets/detector-correlations.html?v=05945c0c92d0'+(document.documentElement.classList.contains('correlationsPanel')?'&compact=1':'');explorer.append(detectorFrame);
   const buttons=[...tablist.children];
   function selectMatrix(id,focus=false,align=false){
    activeMatrix=id;

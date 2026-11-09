@@ -23,7 +23,7 @@ async function loadPresentation(){
  }catch(e){presentationError='Presentation settings could not be read; keeping the current display settings.'}
 }
 const label=r=>`${targetLabel(r.target)} · ${+r.energy_mev/1000} GeV · ${names[r.channel]||r.channel} · ${r.target==='lh2'?'LH2':`sieve ${r.sieve}`} · ${r.cohort==='unverified-history'?'historical, unverified':r.source_commit?.slice(0,8)||r.cohort.slice(0,8)}`;
-let catalog,run,tab=location.hash==='#overview'?'overview':location.hash==='#statistics'?'statistics':location.hash==='#deconvolution'?'results':location.hash==='#changelog'?'changelog':'maps',revision=0,resultData,mapData,bank,trackData,geo,playing=false,lastFrame=0,framePending=false,mapRevision=0;
+let catalog,run,tab=location.hash==='#overview'?'overview':location.hash==='#statistics'?'statistics':location.hash==='#maps'?'maps':location.hash==='#changelog'?'changelog':'results',revision=0,resultData,mapData,bank,trackData,geo,playing=false,lastFrame=0,framePending=false,mapRevision=0;
 let detectorResponse='2',regionAggregation='total';
 function syncResponseControls(){
  const supported=!!staticManifest?.main_detector_response&&(tab==='results'||staticManifest.main_detector_response.runs.includes(run));

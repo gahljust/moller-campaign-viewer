@@ -245,3 +245,10 @@ body:has(#siteHeader)>main{padding:26px 40px 40px}
 .matrixWorkspace.compactMatrix{height:auto}
 #results .matrixWorkspace.compactMatrix>.matrixPanel{flex:none}
 .datasetCompare iframe[data-compact="true"]{height:var(--comparison-content-height)!important}
+
+/* Analysis-tool links stay beside the dataset and below the complete viewer. */
+.deconDatasetLine{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 14px}
+.deconDatasetLine a,.analysisToolFooter a{color:#077d9e;text-decoration:underline;text-decoration-color:#077d9e55;text-underline-offset:2px;white-space:nowrap}
+.deconDatasetLine a:hover,.analysisToolFooter a:hover{text-decoration-color:currentColor}
+.analysisToolFooter{margin:6px 0 0;color:#687486;font:11px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.comparisonPanel .analysisToolFooter{display:none}
