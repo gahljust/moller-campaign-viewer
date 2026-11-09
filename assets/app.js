@@ -506,10 +506,14 @@ $('tracks').onpointermove=e=>{
 for(let event of ['pointerup','pointercancel','lostpointercapture'])$('tracks').addEventListener(event,e=>{pointers.delete(e.pointerId);gestureStart()});
 $('tracks').oncontextmenu=e=>e.preventDefault();
 $('tracks').addEventListener('wheel',e=>{
+ // Ordinary wheel/two-finger scrolling belongs to the page. Browsers encode
+ // trackpad pinch as Ctrl+wheel; mouse users can explicitly hold Ctrl to zoom.
+ if(!e.ctrlKey)return;
  // Wheel gestures can remain latched to the canvas after the pointer leaves it.
  const canvas=$('tracks'),stage=canvas.closest('.transportStage'),b=canvas.getBoundingClientRect(),v=stage.getBoundingClientRect();
  if(tab!=='transport'||e.clientX<Math.max(b.left,v.left)||e.clientX>=Math.min(b.right,v.right)||e.clientY<Math.max(b.top,v.top)||e.clientY>=Math.min(b.bottom,v.bottom)||document.elementFromPoint(e.clientX,e.clientY)!==canvas)return;
- e.preventDefault();let x=(e.clientX-b.left)*1200/b.width-600,y=(e.clientY-b.top)*550/b.height-275,scale=Math.max(8,Math.min(1800,camera.scale*Math.exp(-e.deltaY*.0015))),ratio=scale/camera.scale;camera.pan=[x-(x-camera.pan[0])*ratio,y-(y-camera.pan[1])*ratio];camera.scale=scale;queueTracks()},{passive:false});
+ const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?b.height:1);if(!Number.isFinite(delta))return;
+ e.preventDefault();let x=(e.clientX-b.left)*1200/b.width-600,y=(e.clientY-b.top)*550/b.height-275,scale=Math.max(8,Math.min(1800,camera.scale*Math.exp(-Math.max(-100,Math.min(100,delta))*.0015))),ratio=scale/camera.scale;camera.pan=[x-(x-camera.pan[0])*ratio,y-(y-camera.pan[1])*ratio];camera.scale=scale;queueTracks()},{passive:false});
 $('tracks').onkeydown=e=>{let keys={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(keys[e.key]){e.preventDefault();let[x,y]=keys[e.key];if(e.shiftKey){camera.pan[0]+=x*25;camera.pan[1]+=y*25}else{camera.yaw+=x*.08;camera.pitch=Math.max(-1.5,Math.min(1.5,camera.pitch+y*.08))}queueTracks()}if(e.key==='Home'){e.preventDefault();resetCamera()}};
 $('trackColor').onchange=drawTracks;
 function scheduleAnimation(){if(animationFramePending)return;animationFramePending=true;requestAnimationFrame(animate)}

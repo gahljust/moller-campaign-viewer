@@ -16,7 +16,13 @@
    // Redundant stream captions give way to the visible selection and playback state.
    let pending=false;
    const size=()=>{pending=false;
-    if(!transport.hidden){instrument.style.setProperty('--study-height',Math.max(340,w.innerHeight-instrument.getBoundingClientRect().top-32)+'px');}
+    if(!transport.hidden){
+     // Use the document position: viewport top changes while scrolling and
+     // would resize the canvas (and apparent camera zoom) on every update.
+     const documentTop=instrument.getBoundingClientRect().top+w.scrollY;
+     const height=Math.max(340,Math.round(w.innerHeight-documentTop-32))+'px';
+     if(instrument.style.getPropertyValue('--study-height')!==height)instrument.style.setProperty('--study-height',height);
+    }
    };
    const schedule=()=>{if(!pending){pending=true;w.requestAnimationFrame(size)}};
    new w.MutationObserver(schedule).observe(d.querySelector('main'),{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','disabled']});
