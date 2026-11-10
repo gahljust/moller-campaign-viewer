@@ -662,8 +662,8 @@
       "bytes": 1394079
     },
     "statistics/index.html": {
-      "sha256": "997d5db0c06b9b21c2c2536ff160fb16a9601453f6ef09cd036f91bc756971bf",
-      "bytes": 5915
+      "sha256": "9654b57e549f7c2a9a570d5c2ae64c3f8fea5c72bea2b99bc5ad38a9ada5dede",
+      "bytes": 5978
     },
     "statistics/plots/plot-axes.css": {
       "sha256": "da4317d81b51576f27d1ae2d84c1df77f744e356a26062a796463bd24e7285e2",
@@ -734,8 +734,8 @@
       "bytes": 560646
     },
     "statistics/plots/fit-lens.js": {
-      "sha256": "7944dd9741624546d02aaa466515650032a7cfe31caaf78415d34025793bd383",
-      "bytes": 15659
+      "sha256": "d94c712f16d288bb30e22455b817c9e2fe1aafea857d8fddab27e8e52660d5f8",
+      "bytes": 16597
     },
     "statistics/plots/PE_all_tiles_ring_5.png": {
       "sha256": "6bdf43c1862a8263015a925fd8ca0cb3842736736210c117d2d4b93d2add4f49",

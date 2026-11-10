@@ -28,17 +28,18 @@ function screenPoint(f,event){const b=f.img.getBoundingClientRect();return [(eve
 function inverse(u,state){return state.mode==='log'?Math.exp(Math.log(state.domain[0])+u*Math.log(state.domain[1]/state.domain[0])):state.domain[0]+u*(state.domain[1]-state.domain[0]);}
 function nearest(f,event){
  const axis=f.axisAt(event);if(!axis)return null;const [mx,my]=screenPoint(f,event),box=f.img.getBoundingClientRect(),sx=box.width/f.model.width,sy=box.height/f.model.height;
- let best=null;
+ const curves=[];
  for(const line of axis.lines){
-  if(!line.fit)continue;
-  for(const p of sourcePoints(line)){
-   const [x,y]=position(f,axis,...p);if(!finite(x)||!finite(y))continue;
-   const [a,b,w,h]=axis.rect;if(x<a||x>a+w||y<b||y>b+h)continue;
-   const distance=Math.hypot((x-mx)*sx,(y-my)*sy);
-   if(distance<11&&(!best||distance<best.distance))best={figure:f,axis,line,point:p,distance};
-  }
+  if(!line.fit||line.alpha===0)continue;
+  // Preserve missing samples as gaps. A zoomed line may cross the plot even
+  // when both of its saved endpoints are outside the visible axis range.
+  const raw=line.fit.kind==='histogram'?sourcePoints(line):cat.arrays[line.x].map((x,i)=>[x,cat.arrays[line.y][i]]);
+  const points=raw.map(p=>p.every(v=>typeof v==='number'&&finite(v))?position(f,axis,...p).map((v,i)=>v*(i?sy:sx)):[NaN,NaN]);
+  curves.push({line,raw,points,stroke:line.stroke,width:line.width*sx,
+   markerRadius:line.marker&&!['none',''].includes(String(line.marker).toLowerCase())?line.marker_size*sx/2:0});
  }
- return best;
+ const [a,b,w,h]=axis.rect,hit=root.FitPicking.nearest(curves,[mx*sx,my*sy],[a*sx,b*sy,(a+w)*sx,(b+h)*sy]);
+ return hit?{figure:f,axis,line:hit.curve.line,point:hit.curve.raw[hit.index],distance:hit.distance}:null;
 }
 function removeHandles(s){s.handles?.forEach(h=>h.remove());s.handles=[];}
 function keyOf(s){return s.figure.name+':'+s.figure.model.axes.indexOf(s.axis);}
@@ -187,6 +188,11 @@ function attach(){
 document.addEventListener('click',e=>{if(!menu.contains(e.target))dismiss();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')dismiss();});
 root.addEventListener('scroll',queuePlace,{passive:true});root.addEventListener('resize',queuePlace,{passive:true});
+// A tall embedded sheet does not scroll when its containing page scrolls.
+// Keep the popup in the portion of the iframe that is actually on screen.
+try{let w=root;while(w.parent!==w){w=w.parent;w.addEventListener('scroll',queuePlace,{passive:true});w.addEventListener('resize',queuePlace,{passive:true});}}catch{}
+root.visualViewport?.addEventListener('resize',queuePlace,{passive:true});
+root.visualViewport?.addEventListener('scroll',queuePlace,{passive:true});
 document.querySelector('[data-reset-plots]')?.addEventListener('dblclick',()=>{for(const s of fits.values()){removeHandles(s);s.figure.requestDraw();}fits.clear();active=null;dismiss();});
 root.FitLens={drawFigure,dismiss,refresh:attach};attach();
 })(window);
