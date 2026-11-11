@@ -22,28 +22,41 @@ function paintTile(f,light=1){const sel=correlationActive&&f.index===selected,hi
 // Ring spacing is for presentation; lengths and within-ring z offsets remain metres.
 let unwrapAmount=0,unwrapFrame=0,unwrapMotion=null,unwrapLayout=null;
 const TAU=2*Math.PI,unwrapPitch=.60;
+const unfoldPhase=t=>Math.max(0,(t-.25)/.75);
+const cameraPhase=t=>Math.min(1,t/.25);
+// Open the ring at zero and reduce its curvature without shortest-angle flips.
+const azimuth=a=>{const q=(a%(2*Math.PI)+2*Math.PI)%(2*Math.PI);return q<1e-9||2*Math.PI-q<1e-9?0:q;};
+const tileRotation=(theta,t)=>(Math.PI/2-theta)*t;
+function unrollCenter(u,t){
+ if(t===0)return [...u.center];
+ if(t===1)return [...u.target];
+ const r=u.radius,theta=u.angle,k=1-t,b=k*theta,delta=t*Math.PI/2;
+ const x=k>1e-4?r*(Math.cos(b)-1)/k:-r*k*theta*theta/2;
+ const y=k>1e-4?r*Math.sin(b)/k:r*theta*(1-b*b/6);
+ const radial=Math.hypot(u.center[0],u.center[1])-r,normal=b+delta;
+ return [r+Math.cos(delta)*x-Math.sin(delta)*y+radial*Math.cos(normal),
+  Math.sin(delta)*x+Math.cos(delta)*y+radial*Math.sin(normal)+t*(u.target[1]-radial),
+  u.center[2]*(1-t)+u.target[2]*t];
+}
 const wrapAngle=a=>((a+Math.PI)%TAU+TAU)%TAU-Math.PI;
 const stripGroups=bounds.map((b,j)=>({...b,j,radius:(b.r0+b.r1)/2,zmid:(b.z0+b.z1)/2}));
 let stripHeight=stripGroups.reduce((s,b)=>s+b.r1-b.r0+.35,0)-.35,stripY=stripHeight/2;
 for(const b of stripGroups){b.y=stripY-(b.r1-b.r0)/2;stripY-=b.r1-b.r0+.35;}
-// Cut halfway between neighboring channel centers near phi=0.
-// Each ring uses its own circumference; no seam-duplicate detectors.
-const ring5Angles=centers.filter((_,i)=>rows[i].system===(rows.some(r=>r.system==='ring5')?'ring5':'ring1')).map(p=>(Math.atan2(p[1],p[0])+TAU)%TAU).sort((a,b)=>a-b);
-const unwrapSeam=(ring5Angles[0]+ring5Angles.at(-1)-TAU)/2;
+// Zero is the fixed opening edge; azimuth increases along the strip.
+const unwrapSeam=0;
 const tileUnwrap=centers.map((c,i)=>{
- const b=stripGroups.find(b=>b.system===rows[i].system),phi=Math.atan2(c[1],c[0]);
- const theta=((phi-unwrapSeam)%TAU+TAU)%TAU;
- return {center:c,angle:wrapAngle(-phi-Math.PI/2),group:b,
-   target:[b.radius*(theta-Math.PI),b.y-(Math.hypot(c[0],c[1])-b.radius),c[2]-b.zmid]};
+ const b=stripGroups.find(b=>b.system===rows[i].system),theta=azimuth(Math.atan2(c[1],c[0]));
+ return {center:c,angle:theta,radius:b.radius,group:b,
+ target:[b.radius*(1-theta),b.y+Math.hypot(c[0],c[1])-b.radius,c[2]-b.zmid]};
 });
-function unfoldPoint(p,index,t=unwrapAmount){
- const u=tileUnwrap[index],start=transformed(u.center,rows[index].system);
- const scale=1,a=u.angle*t,c=Math.cos(a),s=Math.sin(a);
+function unfoldPoint(p,index,t=unfoldPhase(unwrapAmount)){
+ const u=tileUnwrap[index],center=unrollCenter(u,t);
+ const scale=1,a=tileRotation(u.angle,t),c=Math.cos(a),s=Math.sin(a);
  const d=p.map((v,j)=>(v-u.center[j])*scale);
- return [c*d[0]-s*d[1],s*d[0]+c*d[1],d[2]].map((v,j)=>v+(1-t)*start[j]+t*u.target[j]);
+ return [c*d[0]-s*d[1],s*d[0]+c*d[1],d[2]].map((v,j)=>v+center[j]);
 }
-function unfoldedNormal(n,index){const a=tileUnwrap[index].angle*unwrapAmount,c=Math.cos(a),s=Math.sin(a);return[c*n[0]-s*n[1],s*n[0]+c*n[1],n[2]];}
-function stripCamera([x,y,z]){const c=Math.cos(unwrapPitch),s=Math.sin(unwrapPitch);return[x,c*y-s*z,s*y+c*z];}
+function unfoldedNormal(n,index){const a=tileRotation(tileUnwrap[index].angle,unfoldPhase(unwrapAmount)),c=Math.cos(a),s=Math.sin(a);return[c*n[0]-s*n[1],s*n[0]+c*n[1],n[2]];}
+function stripCamera([x,y,z]){const c=Math.cos(unwrapPitch),s=Math.sin(unwrapPitch);return[-x,c*y+s*z,s*y-c*z];}
 function fitUnwrap(){
  const points=faces.flatMap(f=>f.p.map(p=>stripCamera(unfoldPoint(p,f.index,1))));
  const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
@@ -53,7 +66,7 @@ function fitUnwrap(){
 function animateUnwrap(on){
  if(unwrapFrame)cancelAnimationFrame(unwrapFrame);
  unwrapFrame=0;unwrapMotion=null;
- const start=unwrapAmount,target=on?1:0,duration=1300*Math.abs(target-start);
+ const start=unwrapAmount,target=on?1:0,duration=1600*Math.abs(target-start);
  if(!duration)return;
  unwrapMotion={start,target,time:performance.now(),duration};
  const tick=now=>{const m=unwrapMotion,q=Math.min(1,(now-m.time)/m.duration),ease=q*q*(3-2*q);
@@ -63,7 +76,7 @@ function animateUnwrap(on){
 }
 function stripAnglePoint(b,phi,y=b.y){
  const theta=((phi-unwrapSeam)%TAU+TAU)%TAU;
- return [b.radius*(theta-Math.PI),y,0];
+ return [b.radius*(1-theta),y,0];
 }
 function drawStripAngles(){
  const alpha=Math.max(0,(unwrapAmount-.72)/.28);if(!alpha)return;
@@ -87,7 +100,7 @@ function drawStripLabels(){
  const alpha=Math.max(0,(unwrapAmount-.72)/.28);if(!alpha)return;
  ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle='#9ab4ca';ctx.font='12px system-ui';ctx.textAlign='right';
  for(const b of stripGroups){
-  const anchor=project([-Math.PI*b.radius-.12,b.y,0]);
+  const anchor=project([b.radius+.12,b.y,0]);
   ctx.fillText(b.system==='showermax'?'ShowerMax':`Ring ${b.system.slice(4)}`,anchor[0],anchor[1]+4);
  }
  ctx.restore();
@@ -100,14 +113,14 @@ function projectedGeometry(){
  const key=[W,H,yaw,pitch,zoom,...pan,unwrapAmount].join(',');
  if(key===projectionKey)return projectedFaces;
  projectionKey=key;
- const t=unwrapAmount,l=unwrapLayout,cy=Math.cos(yaw*(1-t)),sy=Math.sin(yaw*(1-t));
- const cp=Math.cos(pitch*(1-t)+unwrapPitch*t),sp=Math.sin(pitch*(1-t)+unwrapPitch*t);
- const scale=(Math.min(W/4.5,H/3.9)*(1-t)+l.scale*t)*zoom;
- const ox=W*.51*(1-t)+(W+65)/2*t+pan[0],oy=H*.51*(1-t)+(H-25)/2*t+pan[1];
+ const progress=unfoldPhase(unwrapAmount),v=cameraPhase(unwrapAmount),l=unwrapLayout,cy=Math.cos(yaw+wrapAngle(Math.PI-yaw)*v),sy=Math.sin(yaw+wrapAngle(Math.PI-yaw)*v);
+ const cp=Math.cos(pitch*(1-v)+unwrapPitch*v),sp=Math.sin(pitch*(1-v)+unwrapPitch*v);
+ const scale=(Math.min(W/4.5,H/3.9)*(1-v)+l.scale*v)*zoom;
+ const ox=W*.51*(1-v)+(W+65)/2*v+pan[0],oy=H*.51*(1-v)+(H-25)/2*v+pan[1];
  const localScale=1;
  const transforms=tileUnwrap.map((u,i)=>{
-  const a=u.angle*t,c=Math.cos(a),s=Math.sin(a),start=transformed(u.center,rows[i].system);
-  return {u,c,s,center:start.map((v,j)=>(1-t)*v+t*u.target[j])};
+  const a=tileRotation(u.angle,progress),c=Math.cos(a),s=Math.sin(a);
+  return {u,c,s,center:unrollCenter(u,progress)};
  });
  projectedFaces=faces.map(f=>{
   const {u,c,s,center}=transforms[f.index];
@@ -115,8 +128,8 @@ function projectedGeometry(){
    const dx=(p[0]-u.center[0])*localScale,dy=(p[1]-u.center[1])*localScale;
    const x=c*dx-s*dy+center[0],y=s*dx+c*dy+center[1],z=(p[2]-u.center[2])*localScale+center[2];
    const rx=cy*x+sy*z,rz=-sy*x+cy*z,ry=cp*y-sp*rz,depth=sp*y+cp*rz;
-   const perspective=(1-t)*6/(6-depth)+t;
-   return [ox+(rx-l.cx*t)*scale*perspective,oy-(ry-l.cy*t)*scale*perspective,depth];
+   const perspective=(1-v)*6/(6-depth)+v;
+   return [ox+(rx-l.cx*v)*scale*perspective,oy-(ry-l.cy*v)*scale*perspective,depth];
   });
   const nx=c*f.n[0]-s*f.n[1],ny=s*f.n[0]+c*f.n[1],nz=f.n[2];
   const rx=cy*nx+sy*nz,rz=-sy*nx+cy*nz;
@@ -136,14 +149,14 @@ function projectedGeometry(){
  }
  return projectedFaces;
 }
-function rotate([x,y,z]){const y0=yaw*(1-unwrapAmount),p0=pitch*(1-unwrapAmount)+unwrapPitch*unwrapAmount;
+function rotate([x,y,z]){const v=cameraPhase(unwrapAmount),y0=yaw+wrapAngle(Math.PI-yaw)*v,p0=pitch*(1-v)+unwrapPitch*v;
  const a=Math.cos(y0)*x+Math.sin(y0)*z,b=-Math.sin(y0)*x+Math.cos(y0)*z;return[a,Math.cos(p0)*y-Math.sin(p0)*b,Math.sin(p0)*y+Math.cos(p0)*b];}
 function project(p){
- const [x,y,z]=rotate(p),t=unwrapAmount,l=unwrapLayout;
- const base=Math.min(W/4.5,H/3.9),scale=(base*(1-t)+l.scale*t)*zoom;
- const perspective=(1-t)*6/(6-z)+t;
- return[W*.51*(1-t)+(W+65)/2*t+(x-l.cx*t)*scale*perspective+pan[0],
-        H*.51*(1-t)+(H-25)/2*t-(y-l.cy*t)*scale*perspective+pan[1],z];
+ const [x,y,z]=rotate(p),v=cameraPhase(unwrapAmount),l=unwrapLayout;
+ const base=Math.min(W/4.5,H/3.9),scale=(base*(1-v)+l.scale*v)*zoom;
+ const perspective=(1-v)*6/(6-z)+v;
+ return[W*.51*(1-v)+(W+65)/2*v+(x-l.cx*v)*scale*perspective+pan[0],
+        H*.51*(1-v)+(H-25)/2*v-(y-l.cy*v)*scale*perspective+pan[1],z];
 }
 // ROOT kBird, sampled from the installed ROOT palette. Square-root scaling reveals weak correlations.
 const bird=[[53,42,135],[52,44,138],[51,46,141],[49,47,143],[48,49,146],[47,50,149],[46,52,152],[45,54,154],[43,55,157],[42,57,160],[41,58,163],[40,60,166],[38,62,168],[37,63,171],[36,65,174],[35,66,177],[33,68,180],[32,69,182],[31,71,185],[30,73,188],[29,74,191],[27,76,194],[26,77,196],[25,79,199],[24,81,202],[22,82,205],[21,84,207],[20,85,210],[19,87,213],[18,89,216],[16,90,219],[15,92,221],[15,93,221],[15,94,221],[16,95,221],[16,96,220],[16,98,220],[16,99,220],[16,100,220],[16,101,220],[16,102,219],[17,103,219],[17,104,219],[17,106,219],[17,107,218],[17,108,218],[17,109,218],[17,110,218],[18,111,217],[18,112,217],[18,114,217],[18,115,217],[18,116,216],[18,117,216],[19,118,216],[19,119,216],[19,121,215],[19,122,215],[19,123,215],[19,124,215],[19,125,215],[20,126,214],[20,127,214],[20,129,214],[19,130,213],[19,131,213],[19,132,213],[18,133,212],[18,134,212],[17,135,212],[17,136,211],[16,137,211],[16,138,210],[16,140,210],[15,141,210],[15,142,209],[14,143,209],[14,144,209],[13,145,208],[13,146,208],[12,147,207],[12,148,207],[12,149,207],[11,151,206],[11,152,206],[10,153,206],[10,154,205],[9,155,205],[9,156,204],[9,157,204],[8,158,204],[8,159,203],[7,160,203],[7,161,203],[6,163,202],[6,164,202],[7,164,201],[8,165,199],[10,165,198],[11,166,197],[12,167,196],[13,167,195],[15,168,194],[16,169,192],[17,169,191],[18,170,190],[20,170,189],[21,171,188],[22,172,186],[23,172,185],[25,173,184],[26,173,183],[27,174,182],[28,175,180],[30,175,179],[31,176,178],[32,176,177],[33,177,176],[35,178,175],[36,178,173],[37,179,172],[38,179,171],[40,180,170],[41,181,169],[42,181,167],[43,182,166],[45,182,165],[46,183,164],[49,183,162],[52,184,161],[54,184,160],[57,184,158],[60,184,157],[63,185,155],[65,185,154],[68,185,153],[71,185,151],[74,186,150],[77,186,148],[79,186,147],[82,186,146],[85,187,144],[88,187,143],[91,187,141],[93,187,140],[96,188,139],[99,188,137],[102,188,136],[105,188,134],[107,189,133],[110,189,132],[113,189,130],[116,189,129],[118,190,127],[121,190,126],[124,190,125],[127,190,123],[130,191,122],[132,191,120],[135,191,119],[137,191,118],[140,191,117],[142,191,116],[144,191,115],[147,190,114],[149,190,113],[151,190,112],[154,190,111],[156,190,111],[158,190,110],[160,190,109],[163,189,108],[165,189,107],[167,189,106],[170,189,105],[172,189,104],[174,189,103],[177,189,102],[179,189,101],[181,188,100],[183,188,99],[186,188,98],[188,188,98],[190,188,97],[193,188,96],[195,188,95],[197,188,94],[200,187,93],[202,187,92],[204,187,91],[206,187,90],[209,187,89],[210,187,88],[212,188,87],[213,188,86],[214,189,84],[216,189,83],[217,189,82],[219,190,81],[220,190,79],[221,191,78],[223,191,77],[224,192,76],[226,192,75],[227,192,73],[228,193,72],[230,193,71],[231,194,70],[233,194,68],[234,195,67],[236,195,66],[237,195,65],[238,196,64],[240,196,62],[241,197,61],[243,197,60],[244,198,59],[245,198,58],[247,198,56],[248,199,55],[250,199,54],[251,200,53],[252,200,51],[254,200,50],[254,202,49],[254,204,48],[253,205,47],[253,207,46],[253,208,44],[253,210,43],[253,211,42],[253,213,41],[253,215,40],[252,216,39],[252,218,38],[252,219,37],[252,221,35],[252,222,34],[252,224,33],[251,226,32],[251,227,31],[251,229,30],[251,230,29],[251,232,27],[251,233,26],[251,235,25],[250,237,24],[250,238,23],[250,240,22],[250,241,21],[250,243,19],[250,244,18],[249,246,17],[249,248,16],[249,249,15]];

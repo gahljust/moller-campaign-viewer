@@ -5,6 +5,21 @@
 function displaySignal(unit,display='current'){if(unit==='PE/s'&&display==='pe')return {factor:1,unit,label:'PE rate'};return unit==='PE/s'?{factor:1.602176634e-10,unit:'nA',label:'Cathode current'}:{factor:1,unit,label:'Rate'}}
 // Face the upstream entry surfaces in both the view and its fit calculation.
 const unwrapCamera={yaw:Math.PI,pitch:.60};
+const shortestAngle=(from,to)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from));
+// Open the ring at zero and reduce its curvature without shortest-angle flips.
+const azimuth=a=>{const q=(a%(2*Math.PI)+2*Math.PI)%(2*Math.PI);return q<1e-9||2*Math.PI-q<1e-9?0:q;};
+const tileRotation=(theta,t)=>(Math.PI/2-theta)*t;
+function unrollCenter(u,t){
+ if(t===0)return [...u.center];
+ if(t===1)return [...u.target];
+ const r=u.radius,theta=u.angle,k=1-t,b=k*theta,delta=t*Math.PI/2;
+ const x=k>1e-4?r*(Math.cos(b)-1)/k:-r*k*theta*theta/2;
+ const y=k>1e-4?r*Math.sin(b)/k:r*theta*(1-b*b/6);
+ const radial=Math.hypot(u.center[0],u.center[1])-r,normal=b+delta;
+ return [r+Math.cos(delta)*x-Math.sin(delta)*y+radial*Math.cos(normal),
+  Math.sin(delta)*x+Math.cos(delta)*y+radial*Math.sin(normal)+t*(u.target[1]-radial),
+  u.center[2]*(1-t)+u.target[2]*t];
+}
 const regions=['closed','transition','open'],directions=['forward','backward','zero','uncertain'];
 const sum=(a,b)=>a.map((v,i)=>v+b[i]),scale=(a,s)=>a.map(v=>v*s);
 function viridis(t){const s=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];t=Math.max(0,Math.min(.999999,t))*4;const i=Math.floor(t),f=t-i;return s[i].map((v,k)=>(v+(s[i+1][k]-v)*f)/255)}
@@ -88,12 +103,18 @@ function unwrapGeometry(faces,centerZ){
  const groups=systems.map(system=>{const ts=[...tiles.values()].filter(t=>t.system===system),points=ts.flatMap(t=>t.points),r=points.map(p=>Math.hypot(p[0],p[1])),z=points.map(p=>p[2]);return {system,r0:Math.min(...r),r1:Math.max(...r),zmid:(Math.min(...z)+Math.max(...z))/2};});
  let height=groups.reduce((a,b)=>a+b.r1-b.r0+.35,0)-.35,top=height/2;
  for(const g of groups){g.radius=(g.r0+g.r1)/2;g.y=top-(g.r1-g.r0)/2;top-=g.r1-g.r0+.35;}
- const seamTiles=[...tiles.values()].filter(t=>t.system===(systems.includes('ring5')?'ring5':systems[0]));
- const angles=seamTiles.map(t=>(Math.atan2(t.center[1],t.center[0])+tau)%tau).sort((a,b)=>a-b),seam=(angles[0]+angles.at(-1)-tau)/2;
- for(const t of tiles.values()){const g=groups.find(g=>g.system===t.system),phi=Math.atan2(t.center[1],t.center[0]),theta=((phi-seam)%tau+tau)%tau;t.angle=((-phi-Math.PI/2+Math.PI)%tau+tau)%tau-Math.PI;t.target=[g.radius*(theta-Math.PI),g.y-(Math.hypot(t.center[0],t.center[1])-g.radius),t.center[2]-g.zmid];}
+ const seam=0;
+ for(const t of tiles.values()){const g=groups.find(g=>g.system===t.system);t.angle=azimuth(Math.atan2(t.center[1],t.center[0]));t.radius=g.radius;t.target=[g.radius*(1-t.angle),g.y+Math.hypot(t.center[0],t.center[1])-g.radius,t.center[2]-g.zmid];}
  return {tiles,groups,seam};
 }
-function unwrapPoint(p,t,amount){const a=t.angle*amount,c=Math.cos(a),s=Math.sin(a),d=p.map((v,i)=>v-t.center[i]);return [c*d[0]-s*d[1],s*d[0]+c*d[1],d[2]].map((v,i)=>v+t.center[i]*(1-amount)+t.target[i]*amount);}
+function unwrapPoint(p,t,amount){if(amount===0)return [...p];const a=tileRotation(t.angle,amount),c=Math.cos(a),s=Math.sin(a),d=p.map((v,i)=>v-t.center[i]),center=unrollCenter(t,amount);return [c*d[0]-s*d[1],s*d[0]+c*d[1],d[2]].map((v,i)=>v+center[i]);}
+// Align the camera before opening; close the tiles before restoring the camera.
+function advanceUnwrap(view,dt){
+ const alpha=1-Math.exp(-dt/(view.unwrapped||view.unwrapAmount>0?140:65)),c=view.camera;let moving=false;const aligned=Math.abs(view.yaw-c.yaw)<.015&&Math.abs(view.pitch-c.pitch)<.015&&Math.abs(view.zoom-c.zoom)<.001&&view.pan.every((v,i)=>Math.abs(v-c.pan[i])<.1);const delta=(view.unwrapped&&aligned?1:0)-view.unwrapAmount;if(Math.abs(delta)>1e-4){view.unwrapAmount+=delta*(1-Math.exp(-dt/240));moving=true}else view.unwrapAmount=view.unwrapped&&aligned?1:0;
+ for(const key of ['yaw','pitch','zoom']){if(!view.unwrapped&&view.unwrapAmount>.001&&key!=='zoom')continue;const d=(key==='yaw'?shortestAngle(c.yaw,view[key]):view[key])-c[key];if(Math.abs(d)>1e-5){c[key]+=d*alpha;moving=true}else c[key]=view[key];}
+ for(let i=0;i<2;i++){const d=view.pan[i]-c.pan[i];if(Math.abs(d)>.02){c.pan[i]+=d*alpha;moving=true}else c.pan[i]=view.pan[i];}
+ return moving;
+}
 class SurfaceView{
  constructor(element,options={}){
   this.element=element;this.onSelect=options.onSelect;this.selectedDetector=null;this.focusedDetector=null;this.pickFaces=[];this.yaw=Math.PI+.45;this.pitch=.22;this.zoom=1;this.pan=[0,0];this.unwrapped=false;this.unwrapAmount=0;this.meshes=[];this.data=null;this.pending=false;this.dragMode='rotate';this.camera={yaw:this.yaw,pitch:this.pitch,zoom:this.zoom,pan:[...this.pan]};
@@ -104,12 +125,19 @@ class SurfaceView{
   const gl=this.gl;
   const shader=(type,source)=>{const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s};
   const vertex=shader(gl.VERTEX_SHADER,`#version 300 es
-   in vec3 position; in vec3 color; in vec3 tileCenter; in vec3 tileTarget; in float tileAngle; out vec3 rgb;
+   in vec3 position; in vec3 color; in vec3 tileCenter; in vec3 tileTarget; in float tileAngle; in float tileRadius; out vec3 rgb;
    uniform float unwrap;
    uniform vec2 angle; uniform vec2 screen; uniform vec2 pan; uniform float zoom;
    void main(){float cy=cos(angle.x),sy=sin(angle.x),cp=cos(angle.y),sp=sin(angle.y);
-    float a=tileAngle*unwrap;vec3 d0=position-tileCenter;
-    vec3 q=vec3(cos(a)*d0.x-sin(a)*d0.y,sin(a)*d0.x+cos(a)*d0.y,d0.z)+mix(tileCenter,tileTarget,unwrap);
+    float k=1.-unwrap,b=k*tileAngle,delta=unwrap*1.5707963267948966;
+    float ax=k>0.01?tileRadius*(cos(b)-1.)/k:-tileRadius*k*tileAngle*tileAngle/2.*(1.-b*b/12.);
+    float ay=k>0.01?tileRadius*sin(b)/k:tileRadius*tileAngle*(1.-b*b/6.);
+    float radial=length(tileCenter.xy)-tileRadius,normal=b+delta;
+    vec3 center=vec3(tileRadius+cos(delta)*ax-sin(delta)*ay+radial*cos(normal),
+     sin(delta)*ax+cos(delta)*ay+radial*sin(normal)+unwrap*(tileTarget.y-radial),mix(tileCenter.z,tileTarget.z,unwrap));
+    float a=(1.5707963267948966-tileAngle)*unwrap;vec3 d0=position-tileCenter;
+    vec3 q=vec3(cos(a)*d0.x-sin(a)*d0.y,sin(a)*d0.x+cos(a)*d0.y,d0.z)+center;
+    if(unwrap==0.)q=position;
     vec3 p=vec3(cy*q.x+sy*q.z,q.y,-sy*q.x+cy*q.z);
     p=vec3(p.x,cp*p.y-sp*p.z,sp*p.y+cp*p.z);float d=6.-p.z;float s=min(screen.x,screen.y)/3.05*zoom;
     gl_Position=vec4(12.*s*p.x/screen.x+2.*pan.x/screen.x*d,12.*s*p.y/screen.y-2.*pan.y/screen.y*d,1.004008*d-.2004008,d);rgb=color;}`);
@@ -120,7 +148,7 @@ class SurfaceView{
   gl.deleteShader(vertex);gl.deleteShader(fragment);
   this.uniforms=Object.fromEntries(['angle','screen','pan','zoom','unwrap'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
   element.querySelectorAll('[data-camera]').forEach(b=>b.onclick=()=>{this.unwrapped=false;element.querySelector('.surfaceUnwrap').checked=false;element.querySelector('.surfaceLayoutNote').hidden=true;this.focusedDetector=null;if(this.data)this.setData(this.data);this.yaw=b.dataset.camera==='oblique'?Math.PI+.45:b.dataset.camera==='upstream'?0:Math.PI;this.pitch=b.dataset.camera==='oblique'?.22:0;this.zoom=1;this.pan=[0,0];element.querySelectorAll('[data-camera]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));this.draw()});
-  element.querySelector('.surfaceUnwrap').onchange=e=>{this.unwrapped=e.target.checked;this.dragMode=this.unwrapped?'pan':'rotate';element.querySelectorAll('[data-drag]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.drag===this.dragMode)));element.querySelector('.surfaceLayoutNote').hidden=!this.unwrapped;this.yaw=this.unwrapped?unwrapCamera.yaw:Math.PI+.45;this.pitch=this.unwrapped?unwrapCamera.pitch:.22;this.fit();element.querySelectorAll('[data-camera]').forEach(b=>b.setAttribute('aria-pressed',String(!this.unwrapped&&b.dataset.camera==='oblique')));};
+  element.querySelector('.surfaceUnwrap').onchange=e=>{this.unwrapped=e.target.checked;this.dragMode=this.unwrapped?'pan':'rotate';element.querySelectorAll('[data-drag]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.drag===this.dragMode)));element.querySelector('.surfaceLayoutNote').hidden=!this.unwrapped;if(this.unwrapped){this.foldedCamera={yaw:this.camera.yaw,pitch:this.camera.pitch};this.foldedPreset=element.querySelector('[data-camera][aria-pressed="true"]')?.dataset.camera;}this.yaw=shortestAngle(this.camera.yaw,this.unwrapped?unwrapCamera.yaw:(this.foldedCamera?.yaw??Math.PI+.45));this.pitch=this.unwrapped?unwrapCamera.pitch:(this.foldedCamera?.pitch??.22);this.fit();element.querySelectorAll('[data-camera]').forEach(b=>b.setAttribute('aria-pressed',String(!this.unwrapped&&b.dataset.camera===this.foldedPreset)));};
   element.querySelectorAll('[data-drag]').forEach(b=>b.onclick=()=>{this.dragMode=b.dataset.drag;element.querySelectorAll('[data-drag]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
   element.querySelectorAll('[data-zoom]').forEach(b=>b.onclick=()=>{if(b.dataset.zoom==='fit')this.fit();else this.zoomAt(this.zoom*(b.dataset.zoom==='in'?1.5:1/1.5));});
   const position=e=>{const r=this.canvas.getBoundingClientRect();return [e.clientX-r.left-r.width/2,e.clientY-r.top-r.height/2]};
@@ -165,7 +193,7 @@ class SurfaceView{
  clear(text='Loading 3D hit map…'){this.data=null;this.release();this.status(text);this.element.querySelector('.surfaceLegend').hidden=true;this.draw();}
  release(){if(!this.gl)return;for(const m of this.meshes){this.gl.deleteBuffer(m.buffer);this.gl.deleteVertexArray(m.vao)}this.meshes=[];}
  dispose(){this.disposed=true;this.release();this.observer?.disconnect();this.gl?.getExtension('WEBGL_lose_context')?.loseContext();}
- buffer(values,mode){const gl=this.gl,vao=gl.createVertexArray(),buffer=gl.createBuffer();gl.bindVertexArray(vao);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(values),gl.STATIC_DRAW);for(const [name,offset] of [['position',0],['color',12],['tileCenter',24],['tileTarget',36],['tileAngle',48]]){const a=gl.getAttribLocation(this.program,name);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,name==='tileAngle'?1:3,gl.FLOAT,false,52,offset)}this.meshes.push({vao,buffer,mode,count:values.length/13});}
+ buffer(values,mode){const gl=this.gl,vao=gl.createVertexArray(),buffer=gl.createBuffer();gl.bindVertexArray(vao);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(values),gl.STATIC_DRAW);for(const [name,offset] of [['position',0],['color',12],['tileCenter',24],['tileTarget',36],['tileAngle',48],['tileRadius',52]]){const a=gl.getAttribLocation(this.program,name);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,name==='tileAngle'||name==='tileRadius'?1:3,gl.FLOAT,false,56,offset)}this.meshes.push({vao,buffer,mode,count:values.length/14});}
  setData(data){
   this.data=data;if(!this.gl)return;this.release();
   const plane=data.plane,allowed=f=>plane==='all_detectors'?true:plane==='main_detector'?f.system!=='showermax':plane==='circle'?f.system==='showermax':f.system===plane.slice(0,5)&&(!plane.endsWith('_bf')||f.detector<150000)&&(!plane.endsWith('_ff')||f.detector>=150000);
@@ -173,7 +201,7 @@ class SurfaceView{
   const selectedFaces=data.faces.filter(f=>allowed(f)&&inRegion(f));if(!selectedFaces.length){this.pickFaces=[];this.status('No detector geometry');return;}const zs=selectedFaces.map(f=>f.origin[2]),centerZ=(Math.min(...zs)+Math.max(...zs))/2;
   this.unwrapLayout=unwrapGeometry(selectedFaces,centerZ);
   const world=p=>[p[0]/1000,p[1]/1000,(p[2]-centerZ)/1000];
-  const vertex=(p,color,f)=>{const t=this.unwrapLayout.tiles.get(f.detector);return [...world(p),...color,...t.center,...t.target,t.angle];};
+  const vertex=(p,color,f)=>{const t=this.unwrapLayout.tiles.get(f.detector);return [...world(p),...color,...t.center,...t.target,t.angle,t.radius];};
   const background=[],edges=[],signal=[],selectedEdges=[];this.pickFaces=[];
   const tileMetric=data.tileValues,metricValues=tileMetric?Object.values(tileMetric).filter(Number.isFinite):[];
   let max=tileMetric?Math.max(0,...metricValues):0;
@@ -205,19 +233,17 @@ class SurfaceView{
  const canvas=this.element.querySelector('.surfaceAngleOverlay');if(canvas.width!==this.canvas.width||canvas.height!==this.canvas.height){canvas.width=this.canvas.width;canvas.height=this.canvas.height;}
  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,r.width,r.height);if(this.unwrapAmount<.95||!this.unwrapLayout)return;
  const {groups,seam}=this.unwrapLayout,tau=2*Math.PI;const project=p=>{const q=projectPoint(p,this.camera,r.width,r.height);return [q[0]+r.width/2,q[1]+r.height/2];};
- const at=(g,phi,y=g.y)=>project([g.radius*((((phi-seam)%tau+tau)%tau)-Math.PI),y,0]);ctx.strokeStyle='#809ab15c';ctx.fillStyle='#9ab4ca';ctx.font='11px system-ui';ctx.setLineDash([2,5]);ctx.textAlign='center';
+ const at=(g,phi,y=g.y)=>project([g.radius*(1-azimuth(phi-seam)),y,0]);ctx.strokeStyle='#809ab15c';ctx.fillStyle='#9ab4ca';ctx.font='11px system-ui';ctx.setLineDash([2,5]);ctx.textAlign='center';
  const first=groups[0],last=groups.at(-1),stride=Math.max(1,Math.ceil(43/Math.abs(at(first,tau/7)[0]-at(first,0)[0])));
  for(let i=0;i<7;i++){const phi=i*tau/7,start=at(first,phi,first.y+(first.r1-first.r0)/2+.16);ctx.beginPath();ctx.moveTo(...start);for(const g of groups)ctx.lineTo(...at(g,phi));ctx.lineTo(...at(last,phi,last.y-(last.r1-last.r0)/2-.08));ctx.stroke();if(i%stride===0)ctx.fillText((i*360/7).toFixed(1)+'°',start[0],start[1]-7);}
- ctx.textAlign='right';for(const g of groups){const q=project([Math.PI*g.radius+.09,g.y,0]);ctx.fillText(g.system==='showermax'?'ShowerMax':'Ring '+g.system.slice(4),q[0],q[1]+4);}
+ ctx.textAlign='right';for(const g of groups){const q=project([g.radius+.09,g.y,0]);ctx.fillText(g.system==='showermax'?'ShowerMax':'Ring '+g.system.slice(4),q[0],q[1]+4);}
  }
 
  draw(){if(!this.gl||this.pending||this.disposed)return;this.pending=true;requestAnimationFrame(now=>{this.pending=false;if(this.disposed)return;
  const dt=this.lastDraw?Math.min(50,now-this.lastDraw):16;this.lastDraw=now;
- const alpha=1-Math.exp(-dt/65),c=this.camera;let moving=false;const delta=(this.unwrapped?1:0)-this.unwrapAmount;if(Math.abs(delta)>1e-4){this.unwrapAmount+=delta*(1-Math.exp(-dt/190));moving=true}else this.unwrapAmount=this.unwrapped?1:0;
- for(const key of ['yaw','pitch','zoom']){const d=this[key]-c[key];if(Math.abs(d)>1e-5){c[key]+=d*alpha;moving=true}else c[key]=this[key];}
- for(let i=0;i<2;i++){const d=this.pan[i]-c.pan[i];if(Math.abs(d)>.02){c.pan[i]+=d*alpha;moving=true}else c.pan[i]=this.pan[i];}
+ const moving=advanceUnwrap(this,dt),c=this.camera;
 const gl=this.gl,r=this.canvas.getBoundingClientRect();if(!r.width||!r.height)return;const dpr=Math.min(2,root.devicePixelRatio||1),w=Math.round(r.width*dpr),h=Math.round(r.height*dpr);if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h}gl.viewport(0,0,w,h);gl.clearColor(.047,.078,.125,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.useProgram(this.program);gl.uniform2f(this.uniforms.angle,c.yaw,c.pitch);gl.uniform2f(this.uniforms.screen,r.width,r.height);gl.uniform2f(this.uniforms.pan,...c.pan);gl.uniform1f(this.uniforms.zoom,c.zoom);gl.uniform1f(this.uniforms.unwrap,this.unwrapAmount);for(const m of this.meshes){gl.bindVertexArray(m.vao);gl.drawArrays(m.mode,0,m.count)}gl.bindVertexArray(null);this.drawAngles(r,dpr);if(moving)this.draw();});}
 }
-const api={SurfaceView,aggregate,secondaryTileSummary,clipCell,viridis,displaySignal,zoomCamera,rotatePoint,projectPoint,pickDetector,unwrapGeometry,unwrapPoint,unwrapCamera};
+const api={SurfaceView,aggregate,secondaryTileSummary,clipCell,viridis,displaySignal,zoomCamera,rotatePoint,projectPoint,pickDetector,unwrapGeometry,unwrapPoint,unwrapCamera,shortestAngle,advanceUnwrap,tileRotation,unrollCenter};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.HitMap3D=api;
 })(typeof window!=='undefined'?window:globalThis);
