@@ -26,3 +26,26 @@ body{display:block}
 .fit-menu .fit-actions button{font-size:9px}
 
 .toolbar .plotGestureNote{font:9px/1.35 system-ui;color:#657486;text-align:right;white-space:nowrap;margin-left:auto}
+/* One compact reference group, aligned with the controls above it. */
+.metricEquations{display:flex;align-items:center;justify-content:flex-start;width:max-content;max-width:100%;box-sizing:border-box;gap:16px;margin:-6px 0 6px auto;padding:0 10px;flex-wrap:nowrap}
+.metricEquation{display:flex;align-items:center;gap:7px;color:#26374a;flex:none}
+.metricEquation>span{font:600 8px/1.2 system-ui;color:#657486;white-space:nowrap}
+.metricEquation math{font-size:13px}
+.metricIndices{font:8px/1.3 system-ui;color:#657486;width:195px;flex:0 1 195px}
+@media(max-width:700px){
+ .metricEquations{gap:12px;padding:0 6px;margin-top:-6px}
+ .metricEquation{flex-direction:column;align-items:flex-start;gap:2px}
+ .metricEquation>span{font-size:7px}
+ .metricEquation math{font-size:11px}
+ .metricIndices{font-size:7px;width:155px;flex-basis:155px}
+}
+.deconEndpoint{width:min(500px,100%);margin:0 auto 8px;font-size:8.5px;line-height:1.3}
+.endpointControls{display:flex;justify-content:flex-end;align-items:center;margin:0 0 4px}
+.endpointControls>div{display:flex;gap:6px}
+.endpointControls select{font:8px/1.3 system-ui;padding:2px 4px;background:transparent;border-color:#d8dcd9}
+.deconEndpoint table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;background:white}
+.deconEndpoint th,.deconEndpoint td{padding:3px 6px;border-bottom:1px solid #dce3e9;text-align:right}
+.deconEndpoint th:first-child{text-align:left}
+.deconEndpoint thead th{background:#edf4f8;color:#3d596b;font-size:8px;font-weight:600}
+.deconEndpoint tbody th{font-weight:400}
+.deconEndpoint tbody[hidden]{display:none}

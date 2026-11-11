@@ -86,7 +86,7 @@ const LocalTiles=(()=>{
   window.DetectorCorrelationData={rows:tileResponse.rows,C:tileResponse.forecast.category_asymmetry_covariance_ppb2,histories:data.histories};
   window.DisplayCovarianceData={rows:data.rows,C:f.category_asymmetry_covariance_ppb2,grouping:deconGrouping,configuration:deconConfiguration};
   window.ComparisonCovarianceMaximum=null;
-  const detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.loading='lazy';detectorFrame.src='assets/detector-correlations.html?v=7b338cd028c2'+(document.documentElement.classList.contains('correlationsPanel')?'&compact=1':'');explorer.append(detectorFrame);
+  const detectorFrame=document.createElement('iframe');detectorFrame.title='Interactive detector correlations';detectorFrame.className='detectorCorrelationsFrame';detectorFrame.loading='lazy';detectorFrame.src='assets/detector-correlations.html?v=e17d1cec60ea'+(document.documentElement.classList.contains('correlationsPanel')?'&compact=1':'');explorer.append(detectorFrame);
   const buttons=[...tablist.children];
   function selectMatrix(id,focus=false,align=false){
    activeMatrix=id;
